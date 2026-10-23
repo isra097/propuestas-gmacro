@@ -1,0 +1,13 @@
+{
+  "name": "propuestas-gmacro",
+  "private": true,
+  "description": "Generador de propuestas comerciales de Grupo Macro",
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.8.1",
+    "google-auth-library": "11.2.0"
+  }
+}

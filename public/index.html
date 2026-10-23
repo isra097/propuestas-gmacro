@@ -1,0 +1,2785 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Generador de Propuestas · Grupo Macro</title>
+<meta name="robots" content="noindex, nofollow">
+<script src="https://accounts.google.com/gsi/client" async></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: barra superior fija · editor (izquierda, formularios por sección) · vista previa de láminas 16:9 (derecha) */
+:root {
+  --bg: #F3F2EE;
+  --panel: #FFFFFF;
+  --sunk: #ECEBE6;
+  --ink: #1D1D1B;
+  --muted: #67665E;
+  --line: #DEDCD4;
+  --accent: #E0501A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #FBE6DC;
+  --danger: #B3261E;
+  --font-ui: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --font-slide: "Carlito", "Calibri", "Arial", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151514; --panel: #1E1E1C; --sunk: #262623; --ink: #ECEBE5; --muted: #A4A399;
+    --line: #34332F; --accent: #FF6B2C; --accent-ink: #1D1D1B; --accent-soft: #3A2419;
+    --danger: #F2847C; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151514; --panel: #1E1E1C; --sunk: #262623; --ink: #ECEBE5; --muted: #A4A399;
+  --line: #34332F; --accent: #FF6B2C; --accent-ink: #1D1D1B; --accent-soft: #3A2419;
+  --danger: #F2847C; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+html, body { height: 100%; margin: 0; }
+
+.login { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--bg); padding: 16px; }
+.login-card { width: min(420px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 32px 28px; display: grid; gap: 14px; justify-items: center; text-align: center; }
+.login-card img { height: 44px; width: auto; }
+.login-card h2 { margin: 0; font-size: 20px; }
+.login-card p { margin: 0; color: var(--muted); font-size: 14px; }
+.login-err { color: var(--danger) !important; font-size: 13px !important; min-height: 1em; }
+.user-chip { font-size: 12px; color: var(--muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gen-all { display: grid; gap: 6px; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+}
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+.brand img { height: 26px; width: auto; }
+.brand .logo-dark { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand .logo-light { display: none; } :root:not([data-theme="light"]) .brand .logo-dark { display: block; } }
+:root[data-theme="dark"] .brand .logo-light { display: none; }
+:root[data-theme="dark"] .brand .logo-dark { display: block; }
+.brand h1 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: .01em; white-space: nowrap; }
+.brand h1 span { color: var(--muted); font-weight: 500; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.picker { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.picker select { max-width: 280px; }
+.status { font-size: 12px; color: var(--muted); min-width: 110px; }
+.status.err { color: var(--danger); }
+
+button, select, input, textarea { font: inherit; color: inherit; }
+button {
+  border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
+  padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 13px; white-space: nowrap;
+}
+button:hover { border-color: var(--muted); }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.primary:hover { filter: brightness(1.06); }
+button.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+button.ghost:hover { color: var(--ink); border-color: var(--line); }
+button.danger { color: var(--danger); }
+button.icon { padding: 4px 8px; font-size: 13px; line-height: 1.2; }
+button:disabled { opacity: .45; cursor: default; }
+
+.layout { display: grid; grid-template-columns: minmax(340px, 470px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+/* Escritorio: editor y vista previa con scroll independiente */
+@media (min-width: 901px) {
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { flex: none; }
+  .layout { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  .editor, .preview { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .preview { align-content: start; }
+}
+
+.editor {
+  border-right: 1px solid var(--line); background: var(--panel);
+  padding-block: 8px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px;
+  min-width: 0;
+}
+@media (max-width: 900px) { .editor { border-right: 0; border-bottom: 1px solid var(--line); padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
+.banner { margin: 8px 0 4px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; }
+.banner strong { font-weight: 700; }
+
+details.sec { border-bottom: 1px solid var(--line); }
+details.sec > summary {
+  list-style: none; cursor: pointer; padding: 14px 0; display: flex; align-items: baseline; gap: 10px;
+}
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary .num { font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; width: 18px; }
+details.sec > summary .ttl { font-weight: 700; font-size: 15px; }
+details.sec > summary .hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+details.sec > summary::after { content: "+"; color: var(--muted); font-weight: 700; width: 12px; text-align: right; }
+details.sec[open] > summary::after { content: "−"; }
+.sec-body { display: grid; gap: 14px; padding-bottom: 18px; }
+
+.field { display: grid; gap: 5px; min-width: 0; }
+.field > label, .field > .lbl { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+.field small, .sec-body > small { color: var(--muted); font-size: 12px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 420px) { .row2 { grid-template-columns: 1fr; } }
+input[type="text"], input[type="number"], select, textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px;
+}
+textarea { resize: vertical; min-height: 64px; line-height: 1.45; field-sizing: content; overflow-y: hidden; }
+input[type="number"] { font-variant-numeric: tabular-nums; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.check input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* Opciones tipo píldora (plantillas, distribución de láminas) */
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg .opt { position: relative; }
+.seg .opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg .opt span, .seg button {
+  display: inline-block; padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; cursor: pointer; background: var(--bg); color: var(--ink);
+}
+.seg .opt input:checked + span, .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.seg .opt input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.colors { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--line); padding: 0; }
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink); }
+.colors input[type="color"] { width: 34px; height: 28px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: var(--bg); }
+.colors .grp { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; width: 100%; }
+.colors .grp:not(:first-child) { margin-top: 4px; }
+.colors input.hex { width: 96px; font-family: ui-monospace, Consolas, monospace; text-transform: uppercase; }
+.logo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.logo-thumb { height: 40px; max-width: 140px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
+
+.slot { display: grid; gap: 8px; padding: 10px; border: 1px dashed var(--line); border-radius: 8px; outline: none; }
+.slot.active { border-style: solid; border-color: var(--accent); }
+.slot.drag, .logo-row.drag { border: 2px dashed var(--accent); background: var(--accent-soft); }
+.slot .drop-hint { font-size: 12px; color: var(--muted); }
+.slot.active .drop-hint { color: var(--accent); font-weight: 600; }
+.logo-row { border: 2px dashed transparent; border-radius: 8px; padding: 4px; }
+.slot .slot-t { font-size: 12px; font-weight: 600; color: var(--muted); }
+.slot .slot-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.slot .thumb { width: 112px; height: 64px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); background: var(--sunk); }
+.slot small { color: var(--muted); font-size: 12px; }
+
+.icon-pick > summary { cursor: pointer; display: flex; align-items: center; gap: 10px; list-style: none; font-size: 13px; font-weight: 600; }
+.icon-pick > summary::-webkit-details-marker { display: none; }
+.icon-pick > summary img { width: 34px; height: 34px; object-fit: contain; }
+.icon-pick > summary .chg { color: var(--accent); font-size: 12px; }
+.icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px; padding-top: 10px; }
+.icon-grid button { padding: 4px; height: 44px; background: var(--bg); }
+.icon-grid button img { width: 100%; height: 100%; object-fit: contain; }
+.icon-grid button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.parte { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.parte-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 10px; }
+.parte-head .letter {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+  display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none;
+}
+.parte-head .picon { width: 26px; height: 26px; object-fit: contain; flex: none; }
+.parte-head .pname { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.parte-head .pval { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.parte-body { display: grid; gap: 12px; padding: 4px 12px 14px; }
+.parte-body .group { display: grid; gap: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.parte-body .group-t { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.partes { display: grid; gap: 10px; }
+.extras { display: grid; gap: 8px; }
+.extra { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.extra-head { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 8px; }
+.extra-head img { width: 22px; height: 22px; object-fit: contain; flex: none; }
+.extra-head .xname { flex: 1; min-width: 0; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.extra-body { display: grid; gap: 10px; padding: 4px 10px 12px; }
+.parte-foot { display: flex; justify-content: flex-end; padding-top: 4px; }
+.total-line { display: flex; justify-content: space-between; font-weight: 700; padding: 10px 12px; border-radius: 8px; background: var(--sunk); font-variant-numeric: tabular-nums; }
+
+.lines { display: grid; gap: 8px; }
+.line { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.line-top { display: flex; gap: 6px; align-items: center; }
+.line-top input { flex: 1; min-width: 0; }
+.line-nums { display: grid; grid-template-columns: 74px minmax(0, 1fr) 100px auto; gap: 6px; align-items: center; }
+.line-total { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13px; white-space: nowrap; min-width: 76px; text-align: right; }
+@media (max-width: 420px) { .line-nums { grid-template-columns: 1fr 1fr; } }
+.add-line { justify-self: start; font-size: 12px; padding: 5px 10px; }
+
+.ai-only, .ai-inline { display: none !important; }
+body.ai-on .ai-only { display: block !important; }
+body.ai-on .ai-inline { display: inline-flex !important; }
+.row-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn-link {
+  display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
+  padding: 7px 12px; font-weight: 600; font-size: 13px; color: var(--ink); text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.btn-link:hover { border-color: var(--muted); }
+.lbl-inline { font-size: 12px; font-weight: 600; color: var(--muted); }
+.ia-status { margin: 0; font-size: 12.5px; color: var(--muted); }
+.ia-status.err { color: var(--danger); }
+details.mini > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--accent); }
+details.mini .mini-body { display: grid; gap: 8px; padding-top: 8px; font-size: 13px; }
+details.mini p { margin: 0; }
+.quote { padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--bg); border-radius: 0 6px 6px 0; font-size: 12.5px; }
+.slot-prompt { display: grid; gap: 6px; }
+.slot-prompt textarea { min-height: 54px; font-size: 12.5px; }
+.ai-bar { display: none; justify-content: flex-end; }
+body.ai-on .ai-bar { display: flex; }
+.ai-btn { font-size: 12px; padding: 4px 10px; border-radius: 999px; color: var(--accent); border-color: var(--accent-soft); background: transparent; }
+.ai-btn:hover { border-color: var(--accent); }
+.ai-out { border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; display: grid; gap: 8px; background: var(--panel); }
+.ai-out .ai-t { white-space: pre-wrap; font-size: 13px; }
+.ai-out .ai-t.wait { color: var(--muted); font-style: italic; }
+.ai-out .ai-note { font-size: 12px; color: var(--danger); }
+.ai-out .ai-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-out .ai-tag { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+
+.preview {
+  padding-block: 18px 60px;
+  padding-left: 24px; padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 22px; min-width: 0;
+}
+@media (max-width: 900px) { .preview { padding-left: max(16px, env(safe-area-inset-left, 0px)); } }
+.preview-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; max-width: 1100px; }
+.preview-head h2 { font-size: 13px; margin: 0; font-weight: 700; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.preview-head p { margin: 0; font-size: 12px; color: var(--muted); }
+.slide-wrap { display: grid; gap: 6px; max-width: 1100px; }
+.slide-cap { font-size: 12px; color: var(--muted); display: flex; gap: 8px; }
+.slide-cap b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Lámina: siempre blanca, como el documento final. Unidades en cqw para que coincida con el .pptx */
+.slide {
+  position: relative; width: 100%; aspect-ratio: 13.333 / 7.5; max-width: 100%;
+  background: #FFFFFF; color: #1D1D1B; overflow: hidden; container-type: inline-size;
+  border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 24px rgba(0,0,0,.07);
+  font-family: var(--font-slide);
+}
+.slide .el { position: absolute; box-sizing: border-box; }
+.slide .tx { display: flex; flex-direction: column; overflow: hidden; line-height: 1.22; }
+.slide .tx .p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.slide .tx .p.b { position: relative; padding-left: 1.05em; }
+.slide .tx .p.b::before { content: "•"; position: absolute; left: .15em; }
+.slide img.el { display: block; }
+.slide .ph {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  background: #F3F3F0; color: #8A8A84; border: .12cqw dashed #B9B8B0; padding: 1cqw; line-height: 1.25;
+}
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: no-preference) { button { transition: filter .12s, border-color .12s; } }
+</style>
+</head>
+<body>
+
+<div class="login" id="login" hidden>
+  <div class="login-card">
+    <img id="loginLogo" alt="gmacro">
+    <h2>Generador de Propuestas</h2>
+    <p id="loginMsg">Entra con tu cuenta de Grupo Macro.</p>
+    <div id="gbtn"></div>
+    <p class="login-err" id="loginErr" aria-live="polite"></p>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <img class="logo-light" id="brandLogoL" alt="gmacro">
+    <img class="logo-dark" id="brandLogoD" alt="gmacro">
+    <h1>Propuestas <span>· Generador</span></h1>
+  </div>
+  <div class="actions">
+    <div class="picker">
+      <label class="sr" for="picker">Propuestas guardadas</label>
+      <select id="picker"></select>
+    </div>
+    <button id="btnNew" type="button">Nueva</button>
+    <button id="btnDup" type="button">Duplicar</button>
+    <button id="btnDel" type="button" class="ghost danger">Eliminar</button>
+    <span id="delConfirm" hidden>
+      <button id="btnDelYes" type="button" class="danger">Sí, eliminar</button>
+      <button id="btnDelNo" type="button" class="ghost">Cancelar</button>
+    </span>
+    <span class="status" id="status" aria-live="polite"></span>
+    <button id="btnUndo" type="button" class="ghost" hidden>Deshacer</button>
+    <button id="btnPptx" type="button" class="primary">Descargar PowerPoint</button>
+    <span class="user-chip" id="userChip" hidden></span>
+    <button id="btnSalir" type="button" class="ghost" hidden>Salir</button>
+  </div>
+</header>
+
+<main class="layout">
+  <form class="editor" id="editor" autocomplete="off">
+    <div class="banner" id="exampleBanner" hidden><strong>Propuesta de ejemplo.</strong> Edítala, pulsa “Nueva” para empezar desde cero o créala con IA desde las notas de la reunión. Se guarda en cuanto cambias algo.</div>
+
+    <details class="sec ai-only" id="secIA" open>
+      <summary><span class="num">✦</span><span class="ttl">Crear con IA desde la reunión</span><span class="hint">Opcional</span></summary>
+      <div class="sec-body">
+        <small>Sube el audio de la reunión, pega las notas o la transcripción, o sube un archivo de texto. La IA (Gemini) sigue las reglas de la skill de propuestas de Grupo Macro: primero analiza qué falta y luego arma la propuesta con sus láminas y los prompts de imagen.</small>
+        <div class="logo-row">
+          <label for="ia-audio" class="lbl-inline">Subir audio o video de la reunión (MP3, M4A, WAV, MP4…)</label>
+          <input type="file" id="ia-audio" accept="audio/*,video/mp4,video/webm,video/quicktime,.m4a,.mp3,.wav,.ogg,.aac">
+        </div>
+        <div class="field"><label for="ia-notas">Notas o transcripción de la reunión</label>
+          <textarea id="ia-notas" data-k="notas" rows="6" placeholder="Cliente, qué necesita, público, número de participantes, fecha, lugar, duración, actividades o módulos que se conversaron, presupuesto…"></textarea>
+        </div>
+        <div class="logo-row">
+          <label for="ia-file" class="lbl-inline">Subir archivo (.txt, .docx, .vtt, .srt, .md)</label>
+          <input type="file" id="ia-file" accept=".txt,.md,.vtt,.srt,.docx,text/plain">
+        </div>
+        <div class="row-btns">
+          <button type="button" id="btnAnalizar">1. Analizar notas</button>
+          <button type="button" id="btnGenerar" class="primary">2. Generar propuesta</button>
+        </div>
+        <div class="ai-out" id="iaOut" hidden>
+          <div class="ai-tag">Análisis de la reunión</div>
+          <div class="ai-t" id="iaAnalisis"></div>
+        </div>
+        <div class="field" id="iaRespWrap" hidden><label for="ia-resp">Tus respuestas o aclaraciones</label>
+          <textarea id="ia-resp" data-k="iaResp" rows="3" placeholder="Responde lo que falta: participantes, fechas, lugar, inversión, qué actividad va en cada pilar…"></textarea>
+          <small>Se usan al generar la propuesta.</small>
+        </div>
+        <p class="ia-status" id="iaStatus" aria-live="polite"></p>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary><span class="num">1</span><span class="ttl">Cliente y propuesta</span><span class="hint">Portada</span></summary>
+      <div class="sec-body">
+        <div class="field"><label for="f-cliente">Cliente</label><input type="text" id="f-cliente" data-k="cliente" placeholder="Ej. Banco del Austro"></div>
+        <div class="field"><label for="f-titulo">Nombre de la propuesta</label><input type="text" id="f-titulo" data-k="titulo" placeholder="Ej. Programa de Disciplina Comercial"></div>
+        <div class="row2">
+          <div class="field"><label for="f-pais">País</label>
+            <select id="f-pais" data-k="pais">
+              <option>Ecuador</option><option>Perú</option><option>Chile</option><option>Bolivia</option><option>Colombia</option><option>República Dominicana</option><option>El Salvador</option>
+            </select>
+          </div>
+          <div class="field"><label for="f-fecha">Fecha</label><input type="text" id="f-fecha" data-k="fecha" placeholder="Octubre 2026"></div>
+        </div>
+        <div class="field"><label for="f-programa">Programa de Grupo Macro</label>
+          <select id="f-programa" data-k="programa">
+            <option value="">Sin especificar</option>
+            <option>Cultura de Disciplina Comercial</option>
+            <option>Cultura Centrada en el Cliente</option>
+            <option>Cultura de Accountability</option>
+            <option>Cultura Corporativa</option>
+          </select>
+          <small>Aparece en la portada, sobre el nombre de la propuesta.</small>
+        </div>
+        <div class="field"><span class="lbl">Color de la propuesta</span>
+          <div class="colors" id="swatches"></div>
+          <small>Al subir el logo del cliente aparecen sus colores aquí. También puedes escribir un código de color (ej. #22B24C).</small>
+        </div>
+        <div class="field"><span class="lbl">Logo del cliente</span>
+          <div class="logo-row">
+            <img class="logo-thumb" id="logoThumb" alt="Logo del cliente" hidden>
+            <label for="f-logo" class="sr">Subir logo del cliente</label>
+            <input type="file" id="f-logo" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+            <button type="button" id="btnLogoDel" class="ghost" hidden>Quitar</button>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary><span class="num">2</span><span class="ttl">Diseño de las láminas</span><span class="hint">Plantilla</span></summary>
+      <div class="sec-body">
+        <div class="field"><span class="lbl">Estilo de las láminas</span>
+          <div class="seg" role="radiogroup" aria-label="Estilo de las láminas">
+            <label class="opt"><input type="radio" name="tpl-estilo" id="tpl-estilo-portafolio" data-k="tpl.estilo" value="portafolio"><span>Portafolio 2026</span></label>
+            <label class="opt"><input type="radio" name="tpl-estilo" id="tpl-estilo-pincelada" data-k="tpl.estilo" value="pincelada"><span>Pincelada de color</span></label>
+            <label class="opt"><input type="radio" name="tpl-estilo" id="tpl-estilo-barra" data-k="tpl.estilo" value="barra"><span>Título en barra</span></label>
+            <label class="opt"><input type="radio" name="tpl-estilo" id="tpl-estilo-limpio" data-k="tpl.estilo" value="limpio"><span>Sobrio</span></label>
+          </div>
+        </div>
+        <div class="field"><span class="lbl">Portada</span>
+          <div class="seg" role="radiogroup" aria-label="Portada">
+            <label class="opt"><input type="radio" name="tpl-portada" id="tpl-portada-explosion" data-k="tpl.portada" value="explosion"><span>Explosión de color</span></label>
+            <label class="opt"><input type="radio" name="tpl-portada" id="tpl-portada-ciudad" data-k="tpl.portada" value="ciudad"><span>Ciudad</span></label>
+            <label class="opt"><input type="radio" name="tpl-portada" id="tpl-portada-foto" data-k="tpl.portada" value="foto"><span>Foto del cliente</span></label>
+            <label class="opt"><input type="radio" name="tpl-portada" id="tpl-portada-limpia" data-k="tpl.portada" value="limpia"><span>Sobria</span></label>
+          </div>
+          <div id="portadaSlot"></div>
+        </div>
+        <div class="field"><span class="lbl">Cierre</span>
+          <div class="seg" role="radiogroup" aria-label="Cierre">
+            <label class="opt"><input type="radio" name="tpl-cierre" id="tpl-cierre-clase" data-k="tpl.cierre" value="clase"><span>Somos clase mundial</span></label>
+            <label class="opt"><input type="radio" name="tpl-cierre" id="tpl-cierre-mapa" data-k="tpl.cierre" value="mapa"><span>Mapa Grupo Macro</span></label>
+            <label class="opt"><input type="radio" name="tpl-cierre" id="tpl-cierre-contacto" data-k="tpl.cierre" value="contacto"><span>Contactos por país</span></label>
+            <label class="opt"><input type="radio" name="tpl-cierre" id="tpl-cierre-ambos" data-k="tpl.cierre" value="ambos"><span>Contactos + mapa</span></label>
+            <label class="opt"><input type="radio" name="tpl-cierre" id="tpl-cierre-ninguno" data-k="tpl.cierre" value="ninguno"><span>Sin cierre</span></label>
+          </div>
+        </div>
+        <div class="field"><span class="lbl">Íconos</span>
+          <div class="seg" role="radiogroup" aria-label="Íconos">
+            <label class="opt"><input type="radio" name="tpl-iconos" id="tpl-iconos-color" data-k="tpl.iconos" value="color"><span>Acuarela a color</span></label>
+            <label class="opt"><input type="radio" name="tpl-iconos" id="tpl-iconos-bn" data-k="tpl.iconos" value="bn"><span>Blanco y negro</span></label>
+            <label class="opt"><input type="radio" name="tpl-iconos" id="tpl-iconos-acento" data-k="tpl.iconos" value="acento"><span>Color de la propuesta</span></label>
+          </div>
+        </div>
+        <div class="field"><span class="lbl">Forma de las imágenes</span>
+          <div class="seg" role="radiogroup" aria-label="Forma de las imágenes">
+            <label class="opt"><input type="radio" name="tpl-forma" id="tpl-forma-circulo" data-k="tpl.forma" value="circulo"><span>Círculo</span></label>
+            <label class="opt"><input type="radio" name="tpl-forma" id="tpl-forma-rect" data-k="tpl.forma" value="rect"><span>Rectángulo</span></label>
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" id="f-quienes" data-k="incluirQuienes"> Incluir lámina “¿Qué es Grupo Macro?”</label>
+        <div class="field"><label for="f-perfil">Perfil visual del público (para las imágenes de Gemini)</label>
+          <textarea id="f-perfil" data-k="perfilVisual" rows="2" placeholder="Ej. cinco cosmetólogas latinoamericanas de 25 a 35 años con uniforme clínico blanco, cabello bien peinado y maquillaje natural"></textarea>
+          <small>Se repite en todos los prompts para que las personas de las imágenes se parezcan al público real: edad, vestimenta de trabajo, peinado, contexto.</small>
+          <div class="row-btns">
+            <label class="btn-link ai-inline" for="f-perfil-foto">✦ Describir desde una foto</label>
+            <input type="file" id="f-perfil-foto" accept="image/png,image/jpeg,image/webp" hidden>
+            <button type="button" id="btnGenAll" class="primary">✦ Generar todas las imágenes vacías</button>
+            <button type="button" id="btnPrompts">Descargar prompts (.md)</button>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary><span class="num">3</span><span class="ttl">Antecedentes u objetivo</span><span class="hint">1 lámina</span></summary>
+      <div class="sec-body">
+        <div class="field"><label for="f-ante-titulo">Título de la lámina</label>
+          <select id="f-ante-titulo" data-k="ante.titulo">
+            <option>OBJETIVO</option><option>OBJETIVO DEL TALLER</option><option>ANTECEDENTES</option><option>ANTECEDENTE Y OBJETIVO</option><option>EL DESAFÍO</option><option>NECESIDAD</option><option>OBJETIVO DEL PROGRAMA</option>
+          </select>
+        </div>
+        <div class="field"><span class="lbl">Distribución</span>
+          <div class="seg" role="radiogroup" aria-label="Distribución de la lámina de objetivo">
+            <label class="opt"><input type="radio" name="ante-layout" id="ante-layout-imagen" data-k="ante.layout" value="imagen"><span>Imagen + texto</span></label>
+            <label class="opt"><input type="radio" name="ante-layout" id="ante-layout-destacado" data-k="ante.layout" value="destacado"><span>Texto + bloque de color</span></label>
+            <label class="opt"><input type="radio" name="ante-layout" id="ante-layout-frase" data-k="ante.layout" value="frase"><span>Frase grande</span></label>
+          </div>
+          <div id="anteSlot"></div>
+        </div>
+        <div class="field"><label for="f-ante-texto">Texto</label><textarea id="f-ante-texto" data-k="ante.texto" data-ai="objetivo" rows="6" placeholder="Qué busca el cliente, cuál es su situación actual y qué queremos lograr."></textarea></div>
+        <div class="field"><label for="f-ante-dest">Frase destacada (opcional)</label><textarea id="f-ante-dest" data-k="ante.destacado" data-ai="destacado" rows="2" placeholder="Una idea corta para el bloque de color o la frase grande."></textarea></div>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary><span class="num">4</span><span class="ttl">Pasos y partes del proyecto</span><span class="hint" id="partesHint"></span></summary>
+      <div class="sec-body">
+        <div class="field"><label for="f-pasos-titulo">Título de la lámina de pasos</label><input type="text" id="f-pasos-titulo" data-k="pasos.titulo"></div>
+        <div class="field"><span class="lbl">Distribución de la lámina de pasos</span>
+          <div class="seg" role="radiogroup" aria-label="Distribución de la lámina de pasos">
+            <label class="opt"><input type="radio" name="pasos-layout" id="pasos-layout-circulos" data-k="pasos.layout" value="circulos"><span>Círculos con íconos</span></label>
+            <label class="opt"><input type="radio" name="pasos-layout" id="pasos-layout-tarjetas" data-k="pasos.layout" value="tarjetas"><span>Tarjetas A · B · C</span></label>
+            <label class="opt"><input type="radio" name="pasos-layout" id="pasos-layout-lista" data-k="pasos.layout" value="lista"><span>Lista con imagen</span></label>
+          </div>
+          <div id="pasosSlot"></div>
+        </div>
+        <div class="field"><label for="f-pasos-intro">Introducción (opcional)</label><textarea id="f-pasos-intro" data-k="pasos.intro" data-ai="intro" rows="2" placeholder="Ej. El programa se desarrolla en tres etapas:"></textarea></div>
+        <small>Cada paso aparece en la lámina de pasos, tiene su propia lámina y una línea en la lámina de costos.</small>
+        <div class="partes" id="partes"></div>
+        <button type="button" id="btnAddParte">+ Agregar paso</button>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary><span class="num">5</span><span class="ttl">Agenda o cronograma</span><span class="hint">Opcional</span></summary>
+      <div class="sec-body">
+        <label class="check"><input type="checkbox" id="f-agenda" data-k="agenda.incluir"> Incluir lámina de agenda o cronograma</label>
+        <div class="field"><label for="f-agenda-titulo">Título</label><input type="text" id="f-agenda-titulo" data-k="agenda.titulo"></div>
+        <div class="field"><label for="f-agenda-sub">Subtítulo (opcional)</label><input type="text" id="f-agenda-sub" data-k="agenda.subtitulo" placeholder="Ej. 12 de noviembre · San José de Puembo · 08H00 a 15H00"></div>
+        <div class="field"><label for="f-agenda-filas">Filas</label>
+          <textarea id="f-agenda-filas" data-k="agenda.filas" rows="6" placeholder="08H00 – 08H45 | Ciegos y Mudos | Mindset comercial&#10;10H00 – 10H30 | Break"></textarea>
+          <small>Una fila por línea: horario | actividad | pilar o módulo. Las filas sin pilar se muestran como pausa. Para programas largos usa semanas o meses en vez de horas.</small>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary><span class="num">6</span><span class="ttl">Costos</span><span class="hint">1 lámina o más</span></summary>
+      <div class="sec-body">
+        <div class="field"><label for="f-inv-titulo">Título de la lámina</label>
+          <select id="f-inv-titulo" data-k="inv.titulo"><option>INVERSIÓN</option><option>HONORARIOS</option><option>PROPUESTA ECONÓMICA</option></select>
+        </div>
+        <div class="field"><span class="lbl">Costos adicionales (opcional)</span>
+          <small>Para lo que no pertenece a un paso: licencias, materiales, boletos, hospedaje, etc. El desglose de cada paso (por grupos, módulos, personas) se hace dentro del paso.</small>
+          <div id="otros"></div>
+          <button type="button" id="btnAddOtro" class="add-line">+ Agregar costo adicional</button>
+        </div>
+        <div class="total-line"><span>Total</span><span id="sumPartes"></span></div>
+        <div class="row2">
+          <div class="field"><label for="f-desc-label">Descuento o compensación (opcional)</label><input type="text" id="f-desc-label" data-k="inv.descLabel" placeholder="Ej. Compensación contrato 2025"></div>
+          <div class="field"><label for="f-desc-valor">Valor a descontar (USD)</label><input type="number" id="f-desc-valor" data-k="inv.descValor" min="0" step="any" placeholder="0"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="f-mostrar-total" data-k="inv.mostrarTotal"> Mostrar total de inversión</label>
+        <div class="field"><label for="f-noinc">Los honorarios no incluyen</label><textarea id="f-noinc" data-k="inv.noIncluye" rows="4"></textarea><small>Un punto por línea.</small></div>
+        <div class="field"><label for="f-pago">Forma de pago</label><input type="text" id="f-pago" data-k="inv.formaPago"></div>
+      </div>
+    </details>
+  </form>
+
+  <section class="preview" aria-label="Vista previa de las láminas">
+    <div class="preview-head"><h2>Vista previa</h2><p id="slideCount"></p></div>
+    <div id="slides" style="display:grid;gap:22px"></div>
+  </section>
+</main>
+
+<script src="assets.js"></script>
+<script src="skill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+(() => {
+"use strict";
+
+// ---------- Datos ----------
+const GA = window.GM_ASSETS || { icons: {} };   // recursos gráficos de Grupo Macro (assets.js)
+const SW = 13.333, SH = 7.5;           // tamaño de lámina en pulgadas (16:9)
+const INK = "1D1D1B", GREY = "5F5E58", LIGHT = "F2F1EE", RULE = "D9D8D2";
+const PRESETS = [
+  ["#FF5A00", "Naranja gmacro"], ["#0A2240", "Azul marino"], ["#D21D24", "Rojo"],
+  ["#156082", "Azul petróleo"], ["#2E7D32", "Verde"], ["#6A2C91", "Morado"], ["#1D1D1B", "Negro"],
+];
+const NO_INCLUYE = [
+  "IVA ni otros impuestos de ley.",
+  "Movilización, hospedaje, alimentación y salones para los participantes.",
+  "Movilización, hospedaje o alimentación de facilitadores y consultores fuera de la ciudad de Quito.",
+].join("\n");
+const ICON_KEYS = Object.keys(GA.icons);
+const ICON_DEFAULT = ["cerebro", "engranajes", "conexion", "trofeo", "lupa", "libro", "estrella", "chat"];
+const ESTILO_FOTO = "Estilo: fotografía editorial realista, como tomada con cámara réflex y lente de 50 mm, apertura f/2.8, fondo con desenfoque suave, luz natural difusa, paleta limpia de blancos con toques de azul y verde, piel con textura natural sin retoque excesivo, expresiones espontáneas y creíbles. Evitar: texto, logotipos, marcas, rostros deformados, manos con dedos extra, piel plástica o brillo artificial. Formato ";
+const fullPrompt = (prompt, ar) => String(prompt || "").trim().replace(/\s*Estilo: fotografía editorial[\s\S]*$/, "") + " " + ESTILO_FOTO + (ar || "1:1") + ".";
+const TPL_DEFAULT = { estilo: "pincelada", portada: "explosion", cierre: "mapa", iconos: "color", forma: "circulo", logoFondo: "ninguno" };
+
+const uid = () => "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const hoy = () => { const d = new Date(); return MESES[d.getMonth()] + " " + d.getFullYear(); };
+
+function nuevaParte(o = {}, i = 0) {
+  const pt = Object.assign({ id: uid(), nombre: "", resumen: "", duracion: "", descripcion: "", componentes: "", valor: "", detalleValor: "",
+    lineas: [], icono: ICON_DEFAULT[i % ICON_DEFAULT.length], layout: "lista", img: null, open: true }, o);
+  if (!Array.isArray(pt.lineas)) pt.lineas = [];
+  if (!GA.icons[pt.icono]) pt.icono = ICON_DEFAULT[i % ICON_DEFAULT.length];
+  pt.extras = (Array.isArray(pt.extras) ? pt.extras : []).map((x, j) => nuevoExtra(x, j));
+  return pt;
+}
+// Lámina adicional de un paso: un módulo, actividad, habilidad o sesión
+function nuevoExtra(o = {}, j = 0) {
+  const x = Object.assign({ id: uid(), etiqueta: "", titulo: "", hora: "", objetivo: "", contenido: "", frase: "", icono: ICON_DEFAULT[(j + 3) % ICON_DEFAULT.length],
+    layout: "imagenIzq", img: { mode: "deco" }, open: true }, o);
+  if (!GA.icons[x.icono]) x.icono = "estrella";
+  return x;
+}
+const nuevaLinea = (o = {}) => Object.assign({ id: uid(), concepto: "", cantidad: "", unidad: "", precio: "" }, o);
+function blank() {
+  return {
+    id: uid(), cliente: "", titulo: "", pais: "Ecuador", fecha: hoy(), programa: "", color: "#FF5A00", logo: null,
+    tpl: Object.assign({}, TPL_DEFAULT), portadaImg: null, incluirQuienes: false,
+    perfilVisual: "", notas: "", iaResp: "", iaAnalisis: "",
+    agenda: { incluir: false, titulo: "Agenda propuesta", subtitulo: "", filas: "" },
+    ante: { titulo: "OBJETIVO", texto: "", destacado: "", layout: "imagen", img: { mode: "deco" } },
+    pasos: { titulo: "ETAPAS DEL PROYECTO", intro: "", layout: "circulos", img: { mode: "deco" } },
+    partes: [nuevaParte()],
+    inv: { titulo: "INVERSIÓN", noIncluye: NO_INCLUYE, formaPago: "50% de anticipo y 50% contra entrega.", descLabel: "", descValor: "", mostrarTotal: true, otros: [] },
+    localImgs: {},
+    updatedAt: 0,
+  };
+}
+function ejemplo() {
+  const p = blank();
+  Object.assign(p, {
+    ejemplo: true, cliente: "Empresa Ejemplo S.A.", titulo: "Programa de Disciplina Comercial",
+    programa: "Cultura de Disciplina Comercial", incluirQuienes: true,
+  });
+  p.ante = { titulo: "OBJETIVO DEL PROGRAMA", layout: "imagen", img: { mode: "deco" },
+    texto: "Fortalecer y profesionalizar el departamento comercial mediante el diagnóstico de su situación actual, el diseño e implementación de una estrategia comercial sólida y el desarrollo de las competencias del equipo, con rutinas de gestión claras que lleven a un desempeño de alto nivel en ventas.",
+    destacado: "" };
+  p.pasos = { titulo: "PROGRAMA COMERCIAL", intro: "", layout: "circulos", img: { mode: "deco" } };
+  p.partes = [
+    nuevaParte({ open: false, icono: "lupa", nombre: "Diagnóstico y Estrategia Comercial", resumen: "Entender las restricciones y capacidades del equipo y construir la estrategia comercial.", duracion: "Diagnóstico + salida de campo + taller de 8 horas",
+      descripcion: "La exploración y el diagnóstico permiten conocer las restricciones y capacidades del equipo. Con esa base construimos la planificación estratégica comercial junto a la gerencia.",
+      componentes: "Revisión de indicadores de resultado y gestión\nEntrevista al líder comercial y visita de discovery\nEstimación del mercado (TAM) y cliente correcto\nMatriz atractivo-competitividad y diferenciador\nDesarrollo de embudos y rutinas comerciales",
+      valor: "5000", detalleValor: "Diagnóstico · Salida de campo · Taller de 8 horas" }),
+    nuevaParte({ open: false, icono: "conexion", layout: "imagenDer", img: { mode: "vacio" }, nombre: "Fortalecimiento de la Jefatura Comercial", resumen: "Profesionalizar el rol del líder comercial en el seguimiento y desarrollo del equipo.", duracion: "Taller presencial",
+      descripcion: "Profesionalizamos el rol del líder comercial con habilidades de seguimiento y desarrollo del equipo.",
+      componentes: "Reunión Grito\nReunión Daily\nAcompañamiento en campo\nRetroalimentación",
+      valor: "1400", detalleValor: "Diseño instruccional · Taller en rutinas comerciales" }),
+    nuevaParte({ open: false, icono: "trofeo", nombre: "Entrenamiento Comercial", resumen: "Desarrollar habilidades de venta consultiva en todo el equipo comercial.", duracion: "Talleres presenciales gamificados",
+      descripcion: "Desarrollo de habilidades comerciales enfocadas en la venta consultiva, con práctica sobre casos reales de la industria.",
+      componentes: "Humano – Negocio\nEscuchar y encontrar el satisfactor\nBeneficios y storytelling\nManejo de objeciones\nTécnicas de cierre",
+      valor: "", detalleValor: "Diseño instruccional · talleres presenciales",
+      extras: [
+        { open: false, etiqueta: "Módulo 1", titulo: "Humano – Negocio", icono: "chat", objetivo: "Desarrollar la habilidad para generar confianza con el cliente y hacer preguntas que conecten la necesidad humana con el negocio.", contenido: "Modelo de interacción humano – negocio\nPor qué generar confianza con el cliente\nTipos de preguntas desde lo humano y desde el negocio\nPráctica con casos reales de la industria" },
+        { open: false, etiqueta: "Módulo 2", titulo: "Manejo de objeciones", icono: "balanza", objetivo: "Identificar los tipos de objeciones y manejarlas como una oportunidad de cierre.", contenido: "Qué es una objeción\nIndagar para entender la objeción\nObjeciones tangenciales, angulares y centrales\nPráctica de manejo de objeciones" },
+      ],
+      lineas: [
+        nuevaLinea({ concepto: "Grupo 1 · Equipo de ventas", cantidad: "2", unidad: "talleres", precio: "700" }),
+        nuevaLinea({ concepto: "Grupo 2 · Equipo de ventas", cantidad: "2", unidad: "talleres", precio: "700" }),
+      ] }),
+  ];
+  return p;
+}
+
+// ---------- Utilidades ----------
+const num = v => { const n = parseFloat(String(v ?? "").replace(",", ".")); return isFinite(n) ? n : 0; };
+const hasNum = v => String(v ?? "").trim() !== "" && isFinite(parseFloat(String(v).replace(",", ".")));
+const fmtNum = n => new Intl.NumberFormat("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
+const money = n => "$ " + fmtNum(n);
+// Valores: una línea vale cantidad × precio (sin cantidad = precio). Un paso con líneas vale su suma.
+const lineTotal = l => (hasNum(l.cantidad) ? num(l.cantidad) : 1) * num(l.precio);
+const parteTotal = pt => pt.lineas && pt.lineas.length ? pt.lineas.reduce((s, l) => s + lineTotal(l), 0) : num(pt.valor);
+const parteHas = pt => (pt.lineas && pt.lineas.some(l => hasNum(l.precio))) || hasNum(pt.valor);
+const otrosOf = p => (p.inv.otros || []).filter(l => (l.concepto || "").trim() || hasNum(l.precio));
+const grandTotal = p => p.partes.reduce((s, q) => s + parteTotal(q), 0) + otrosOf(p).reduce((s, l) => s + lineTotal(l), 0);
+const letter = i => String.fromCharCode(65 + i);
+const lines = s => String(s || "").split("\n").map(x => x.trim()).filter(Boolean);
+const hex = c => String(c || "#FF5A00").replace("#", "").toUpperCase();
+function tint(h, a) { // mezcla con blanco → color sólido (sirve igual en HTML y PPTX)
+  const n = parseInt(h, 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+  const m = x => Math.round(x * a + 255 * (1 - a)).toString(16).padStart(2, "0");
+  return (m(r) + m(g) + m(b)).toUpperCase();
+}
+function onAccent(h) { // texto legible sobre el color de la propuesta
+  const n = parseInt(h, 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 165 ? INK : "FFFFFF";
+}
+// Ajusta el tamaño de letra para que el texto quepa en la caja (estimación por ancho medio de carácter)
+function fit(paras, w, h, max, min, cw = 0.5, gap = 0) {
+  for (let pt = max; pt > min; pt -= 0.5) {
+    let hh = 0;
+    for (const p of paras) {
+      const s = typeof p === "string" ? p : p.text, ind = p && p.bullet ? 0.18 : 0;
+      const rel = (p && p.size) ? p.size : 1;
+      const cpl = Math.max(1, Math.floor((w - ind) * 72 / (pt * rel * cw)));
+      const n = Math.max(1, Math.ceil(String(s).length / cpl));
+      hh += n * pt * rel * 1.22 / 72 + ((p && p.after) || gap) / 72;   // espacio después del párrafo, en puntos
+    }
+    if (hh <= h) return pt;
+  }
+  return min;
+}
+function contain(iw, ih, x, y, w, h, align = "center") {
+  const r = ih / iw; let ww = w, hh = w * r;
+  if (hh > h) { hh = h; ww = h / r; }
+  const xx = align === "left" ? x : align === "right" ? x + w - ww : x + (w - ww) / 2;
+  return { x: xx, y: y + (h - hh) / 2, w: ww, h: hh };
+}
+
+// ---------- Piezas de lámina ----------
+// rect {x,y,w,h,fill,shape?:"ellipse"|"tri",alpha?,line?:{color,width,dash}}  line {x,y,w,h,color,width,dash}
+// img {x,y,w,h,src,fit?:"cover",round?}  ph {x,y,w,h,round,label} (espacio para imagen)
+// text {x,y,w,h,paras:[{text,size?,bold?,italic?,color?,bullet?,after?}],size,color,bold,italic,align,valign,spacing?}
+const T = (x, y, w, h, text, size, o = {}) => Object.assign({ t: "text", x, y, w, h, paras: [{ text }], size, color: INK }, o);
+const imgAt = (src, x, y, w, h, o = {}) => Object.assign({ t: "img", x, y, w, h, src }, o);
+function gmLogo(x, y, w, white) {
+  const L = white ? GA.logoWhite : GA.logoBlack;
+  return L ? imgAt(L.src, x, y, w, w * L.h / L.w) : T(x, y, w, w * 0.53, "gmacro", 14, { bold: true, color: white ? "FFFFFF" : INK });
+}
+function logoBox(logo, x, y, w, h, align) { return Object.assign(imgAt(logo.data, 0, 0, 0, 0), contain(logo.w, logo.h, x, y, w, h, align)); }
+function iconEl(c, key, x, y, w, h, align) {
+  const ic = c.env.icon(key, c.p.tpl.iconos, c.A);
+  return Object.assign(imgAt(ic.src, 0, 0, 0, 0), contain(ic.w, ic.h, x, y, w, h, align));
+}
+// Un espacio de imagen: imagen subida, decoración de Grupo Macro o espacio vacío para colocarla después en PowerPoint
+function slotEls(c, slot, x, y, w, h, round, label, deco, ar = "1:1") {
+  const s = slot || { mode: "vacio" };
+  if (s.mode === "img" && s.id) {
+    const im = c.env.img(s.id);
+    return im ? [imgAt(im.src, x, y, w, h, { fit: "cover", round, iw: im.w, ih: im.h })] : [{ t: "ph", x, y, w, h, round, label: "Cargando imagen…" }];
+  }
+  if (s.mode === "deco" && deco) return deco();
+  return [{ t: "ph", x, y, w, h, round, label: label || "Espacio para imagen", prompt: (s.prompt || "").trim(), ar, nombre: label }];
+}
+// Frase ancla: caja gris con borde de color y la frase en cursiva
+function anchorEls(c, frase, x, y, w, h) {
+  const t = "“" + frase.replace(/^["“]|["”]$/g, "") + "”";
+  return [
+    { t: "rect", x, y, w, h, fill: LIGHT },
+    { t: "rect", x, y, w: 0.07, h, fill: c.A },
+    T(x + 0.3, y, w - 0.45, h, t, fit([t], w - 0.45, h - 0.1, 18, 11, 0.52), { bold: true, italic: true, valign: "middle" }),
+  ];
+}
+
+function frame(c, title) {
+  const { p, A, onA } = c, est = p.tpl.estilo, TT = String(title || "").toUpperCase();
+  const els = [];
+  if (est === "portafolio") {
+    // Portafolio Comercial 2026: título centrado con barra de color, pie con isotipo gm y logo del cliente
+    const tt = String(title || "");
+    els.push(T(1.4, 0.38, 10.53, 0.78, tt, fit([tt], 10.53, 0.78, 30, 16, 0.55), { bold: true, align: "center", valign: "middle" }));
+    if (GA.barraColor) els.push(imgAt(GA.barraColor.src, SW / 2 - 2.4, 1.22, 4.8, 0.06));
+    els.push({ t: "rect", x: 0.35, y: 6.62, w: 12.63, h: 0.012, fill: "D9D9D9" });
+    if (GA.isotipo) els.push(imgAt(GA.isotipo.src, 0.6, 6.76, 0.5, 0.5 * GA.isotipo.h / GA.isotipo.w));
+    if (p.logo) els.push(logoBox(p.logo, 10.45, 6.74, 2.3, 0.55, "right"));
+    else els.push(T(9.0, 6.8, 3.9, 0.45, "www.gmacro.com", 10, { color: GREY, align: "right", valign: "middle" }));
+    return { els, y0: 1.55, y1: 6.45 };
+  }
+  if (est === "pincelada") {
+    const b = GA.pincelTop; if (b) els.push(imgAt(b.src, b.box[0], b.box[1], b.box[2], b.box[3]));
+    if (p.logo) els.push(logoBox(p.logo, 0.45, 0.22, 1.9, 0.9, "left")); else els.push(gmLogo(0.45, 0.28, 1.55));
+    const size = fit([TT], 8.6, 0.5, 20, 12, 0.62);
+    const tw = Math.min(8.6, TT.length * size * 0.6 / 72 + 0.15);
+    els.push(T(12.9 - 8.6, 1.12, 8.6, 0.52, TT, size, { bold: true, align: "right", valign: "bottom" }));
+    els.push({ t: "line", x: 12.9 - tw, y: 1.72, w: tw, h: 0, color: "8A8A84", width: 1.5, dash: "dot" });
+    els.push({ t: "rect", x: 0.3, y: 7.14, w: 12.73, h: 0.025, fill: A });
+    if (p.logo) els.push(gmLogo(12.05, 6.62, 0.8));
+    else els.push(T(9.0, 6.78, 3.9, 0.3, "www.gmacro.com", 10, { color: GREY, align: "right", valign: "middle" }));
+    return { els, y0: 1.95, y1: 6.5 };
+  }
+  if (est === "barra") {
+    const size = fit([TT], 7.6, 0.62, 19, 12, 0.62);
+    const tw = Math.min(8.4, TT.length * size * 0.62 / 72 + 0.95);
+    els.push({ t: "rect", x: 0, y: 0.38, w: tw, h: 0.68, fill: A });
+    els.push(T(0.45, 0.38, tw - 0.6, 0.68, TT, size, { bold: true, color: onA, valign: "middle" }));
+    if (p.logo) els.push(logoBox(p.logo, 10.55, 0.25, 2.3, 0.92, "right")); else els.push(gmLogo(11.15, 0.33, 1.6));
+    const b = GA.pincelBottom; if (b) els.push(imgAt(b.src, 0, SH - 0.42, 6.0, 0.42));
+    if (p.logo) els.push(gmLogo(12.05, 6.72, 0.8));
+    else els.push(T(9.0, 6.95, 3.9, 0.3, "www.gmacro.com", 10, { color: GREY, align: "right", valign: "middle" }));
+    return { els, y0: 1.45, y1: 6.6 };
+  }
+  // Sobrio
+  const w = p.logo ? 9.9 : 11.4;
+  els.push({ t: "rect", x: 0.6, y: 0.62, w: 0.1, h: 0.52, fill: A });
+  els.push(T(0.85, 0.52, w, 0.72, TT, fit([TT], w, 0.72, 28, 16, 0.62), { bold: true, valign: "middle" }));
+  els.push(T(0.6, 6.95, 4, 0.3, "www.gmacro.com   #TransformamosCultura", 10, { color: GREY, valign: "middle" }));
+  els.push(gmLogo(11.95, 6.82, 0.9));
+  if (p.logo) els.push(logoBox(p.logo, 11.05, 0.45, 1.75, 0.85, "right"));
+  return { els, y0: 1.6, y1: 6.6 };
+}
+
+// ---------- Láminas ----------
+function buildSlides(p, env) {
+  const A = hex(p.color), c = { p, env, A, onA: onAccent(A), soft: tint(A, 0.12), round: p.tpl.forma !== "rect" };
+  const { onA, soft, round } = c;
+  const S = [];
+  const partes = p.partes;
+  const tt = p.titulo || "Nombre de la propuesta";
+
+  // ----- Portada -----
+  {
+    const els = [];
+    const pt = p.tpl.portada;
+    const sub = [p.logo ? p.cliente : "", p.fecha, p.pais].filter(Boolean).join("  ·  ");
+    if (pt === "explosion") {
+      const ex = GA.explosion; if (ex) els.push(imgAt(ex.src, -1.4, -0.35, 8.6, 8.6 * ex.h / ex.w));
+      if (p.logo) els.push(logoBox(p.logo, 6.4, 0.7, 4.8, 1.8, "center"));
+      else els.push(T(4.6, 0.95, 8.4, 1.4, p.cliente || "Cliente", fit([p.cliente || "Cliente"], 8.4, 1.4, 40, 20, 0.55), { bold: true, align: "center", valign: "middle" }));
+      if (p.programa) els.push(T(4.6, 2.8, 8.4, 0.42, p.programa.toUpperCase(), 13, { bold: true, color: A, spacing: 2, align: "center", valign: "bottom" }));
+      els.push({ t: "rect", x: 4.3, y: 3.3, w: SW - 4.3, h: 1.15, fill: A });
+      els.push(T(4.6, 3.3, 8.4, 1.15, tt.toUpperCase(), fit([tt.toUpperCase()], 8.4, 1.1, 28, 14, 0.6), { bold: true, color: onA, align: "center", valign: "middle" }));
+      els.push(T(4.6, 4.6, 8.4, 0.45, sub, 14, { color: GREY, align: "center", valign: "middle" }));
+      els.push(gmLogo(7.65, 5.4, 2.3));
+    } else if (pt === "ciudad") {
+      if (GA.ciudad) els.push(imgAt(GA.ciudad.src, 0, 0, SW, SH));
+      els.push({ t: "rect", x: 0, y: 0, w: SW, h: SH, fill: "000000", alpha: 0.38 });
+      els.push(gmLogo(5.27, 0.65, 2.8, true));
+      if (p.programa) els.push(T(1.0, 2.3, 11.33, 0.42, p.programa.toUpperCase(), 13, { bold: true, color: "FFFFFF", spacing: 2, align: "center", valign: "bottom" }));
+      els.push(T(1.0, 2.75, 11.33, 1.5, tt.toUpperCase(), fit([tt.toUpperCase()], 11.33, 1.5, 40, 20, 0.6), { bold: true, color: "FFFFFF", align: "center", valign: "middle" }));
+      const lf = GA.lineaFina || GA.linea;
+      if (lf) els.push(imgAt(lf.src, 0.9, 4.42, 11.53, 11.53 * lf.h / lf.w));
+      if (p.logo && p.tpl.logoFondo === "blanco") {
+        els.push({ t: "rect", x: 5.17, y: 5.1, w: 3.0, h: 1.05, fill: "FFFFFF" });
+        els.push(logoBox(p.logo, 5.32, 5.2, 2.7, 0.85, "center"));
+      } else if (p.logo) els.push(logoBox(p.logo, 4.67, 4.95, 4.0, 1.4, "center"));
+      else els.push(T(1.0, 5.2, 11.33, 0.6, p.cliente || "Cliente", 22, { color: "FFFFFF", align: "center", valign: "middle" }));
+      els.push(T(0.5, 6.9, 4, 0.35, "www.gmacro.com", 11, { color: "FFFFFF", valign: "middle" }));
+      els.push(T(4.67, 6.9, 4, 0.35, [p.fecha, p.pais].filter(Boolean).join("  ·  "), 11, { color: "FFFFFF", align: "center", valign: "middle" }));
+      els.push(T(8.83, 6.9, 4, 0.35, "#TransformamosCultura", 11, { color: "FFFFFF", align: "right", valign: "middle" }));
+    } else if (pt === "foto") {
+      els.push(...slotEls(c, p.portadaImg, 0, 0, SW, 3.95, false, "Foto del cliente o de su equipo", null, "16:9"));
+      if (p.logo) {
+        els.push(logoBox(p.logo, 0.7, 4.45, 2.6, 1.3, "center"));
+        els.push({ t: "line", x: 3.62, y: 4.5, w: 0, h: 1.2, color: RULE, width: 1.5 });
+        els.push(gmLogo(3.95, 4.7, 2.0));
+      } else els.push(gmLogo(0.8, 4.55, 2.5));
+      if (p.programa) els.push(T(6.3, 4.2, 6.55, 0.4, p.programa.toUpperCase(), 12, { bold: true, color: GREY, spacing: 1.5, align: "right", valign: "bottom" }));
+      els.push(T(6.3, 4.62, 6.55, 1.4, tt.toUpperCase(), fit([tt.toUpperCase()], 6.55, 1.4, 34, 16, 0.6), { bold: true, color: A, align: "right", valign: "middle" }));
+      els.push(T(6.3, 6.05, 6.55, 0.4, [p.logo ? "" : p.cliente, p.fecha, p.pais].filter(Boolean).join("  ·  "), 13, { color: GREY, align: "right", valign: "middle" }));
+      els.push({ t: "rect", x: 0, y: 7.08, w: SW, h: 0.42, fill: A });
+      els.push(T(0, 7.08, SW, 0.42, "w w w . g m a c r o . c o m", 11, { bold: true, color: onA, align: "center", valign: "middle" }));
+    } else {
+      els.push({ t: "rect", x: 8.95, y: 0, w: SW - 8.95, h: SH, fill: A });
+      els.push(gmLogo(9.55, 0.75, 2.3, onA === "FFFFFF"));
+      els.push(T(9.55, 6.35, 3.4, 0.45, "#TransformamosCultura", 16, { bold: true, color: onA, valign: "middle" }));
+      els.push(T(0.85, 2.05, 7.6, 0.45, (p.programa || "Propuesta").toUpperCase(), 14, { bold: true, color: A, spacing: 2, valign: "bottom" }));
+      els.push(T(0.85, 2.6, 7.6, 2.3, tt, fit([tt], 7.6, 2.3, 44, 24, 0.52), { bold: true }));
+      els.push({ t: "rect", x: 0.85, y: 5.05, w: 1.2, h: 0.06, fill: A });
+      els.push(T(0.85, 5.25, 7.6, 0.5, p.cliente || "Cliente", 22));
+      els.push(T(0.85, 6.45, 7.6, 0.35, [p.fecha, p.pais].filter(Boolean).join("  ·  "), 13, { color: GREY, valign: "middle" }));
+      if (p.logo) els.push(logoBox(p.logo, 0.85, 0.6, 2.4, 1.0, "left"));
+    }
+    S.push({ name: "Portada", els });
+  }
+
+  // ----- ¿Qué es Grupo Macro? -----
+  if (p.incluirQuienes) {
+    const { els, y0, y1 } = frame(c, "¿Qué es Grupo Macro?");
+    const m = GA.mapa, mh = y1 - y0, mw = m ? mh * m.w / m.h : 3.5;
+    if (m) els.push(imgAt(m.src, 0.7, y0, mw, mh));
+    const x = 0.7 + mw + 0.55, w = 12.85 - x;
+    const intro = "Somos una consultora de clase mundial, referente en Transformación Cultural, con presencia en 7 países: Ecuador, Perú, Chile, Bolivia, Colombia, República Dominicana y El Salvador. Nuestro portafolio se enfoca en Disciplina Comercial, Cultura Cliente Céntrica, Cultura de Ejecución y Trabajo en Equipo, y Cultura Corporativa.";
+    els.push(T(x, y0, w, 1.55, intro, fit([intro], w, 1.55, 16, 10), {}));
+    const P = [
+      ["lupa", "Lo que se mide, se mejora", "Herramientas tecnológicas que miden la implementación de la nueva cultura."],
+      ["mascara", "Lo divertido, impacta", "Metodología gamificada: impactos más rápidos, económicos y con menor resistencia al cambio."],
+      ["engranajes", "Lo práctico, funciona", "Más de 25 años aplicando metodologías que mueven el indicador de negocio a través de la cultura."],
+    ];
+    const ry = y0 + 1.75, rh = (y1 - ry) / 3;
+    P.forEach(([ic, h, d], i) => {
+      const y = ry + i * rh, is = Math.min(0.85, rh - 0.2);
+      els.push(iconEl(c, ic, x, y + (rh - is) / 2, is, is));
+      const paras = [{ text: h, bold: true, color: INK, after: 2 }, { text: d, color: GREY, size: 0.85 }];
+      els.push({ t: "text", x: x + is + 0.3, y, w: w - is - 0.3, h: rh, paras, size: fit(paras, w - is - 0.3, rh, 16, 9), valign: "middle" });
+    });
+    S.push({ name: "¿Qué es Grupo Macro?", els });
+  }
+
+  // ----- Antecedentes u objetivo -----
+  {
+    const { els, y0, y1 } = frame(c, p.ante.titulo);
+    const has = !!(p.ante.texto || "").trim();
+    const txt = has ? p.ante.texto : "Escribe aquí los antecedentes u objetivo de la propuesta.";
+    const paras = txt.split("\n").filter(s => s.trim()).map(s => ({ text: s.trim(), after: 10 }));
+    const dest = (p.ante.destacado || "").trim();
+    const lay = p.ante.layout;
+    if (lay === "destacado") {
+      const w = dest ? 7.7 : 11.6, H = y1 - y0 - 0.1;
+      els.push({ t: "text", x: 0.85, y: y0, w, h: H, paras, size: fit(paras, w, H, 24, 12, 0.5, 0.5), color: has ? INK : "9A9A93", valign: "middle" });
+      if (dest) {
+        els.push({ t: "rect", x: 9.0, y: y0, w: 3.85, h: H, fill: c.A });
+        els.push(T(9.35, y0 + 0.3, 3.15, H - 0.6, dest, fit([dest], 3.15, H - 0.6, 30, 14, 0.52), { bold: true, color: onA, valign: "middle" }));
+      }
+    } else if (lay === "frase") {
+      const q = dest || txt;
+      els.push(T(1.0, y0 + 0.1, 11.33, 2.7, "“" + q + "”", fit(["“" + q + "”"], 11.33, 2.7, 44, 20, 0.52), { bold: true, color: c.A, align: "center", valign: "middle" }));
+      if (dest && has) els.push({ t: "text", x: 1.6, y: y0 + 3.0, w: 10.13, h: y1 - y0 - 3.1, paras, size: fit(paras, 10.13, y1 - y0 - 3.1, 18, 10, 0.5, 0.5), color: GREY, align: "center", valign: "top" });
+    } else {
+      const H = y1 - y0, d = Math.min(3.9, H), sw = round ? d : 4.6, sh = d;
+      const sx = 0.9, sy = y0 + (H - sh) / 2;
+      els.push(...slotEls(c, p.ante.img, sx, sy, sw, sh, round, "Imagen o gráfico", () => GA.circulo ? [
+        imgAt(GA.circulo.src, sx + (sw - d) / 2, sy, d, d),
+        imgAt(GA.reloj.src, sx + (sw - d) / 2 + d * 0.2, sy + d * 0.2, d * 0.6, d * 0.6 * GA.reloj.h / GA.reloj.w),
+      ] : []));
+      const x = sx + sw + 0.65, w = 12.85 - x;
+      const all = dest ? paras.concat([{ text: dest, bold: true, color: c.A }]) : paras;
+      els.push({ t: "text", x, y: y0, w, h: H, paras: all, size: fit(all, w, H, 20, 11, 0.5, 0.5), color: has ? INK : "9A9A93", valign: "middle" });
+    }
+    S.push({ name: "Antecedentes u objetivo", els });
+  }
+
+  // ----- Pasos -----
+  {
+    const { els, y0, y1 } = frame(c, p.pasos.titulo || "Etapas del proyecto");
+    let y = y0;
+    const intro = (p.pasos.intro || "").trim();
+    if (intro) { els.push(T(0.85, y - 0.05, 12.0, 0.5, intro, fit([intro], 12.0, 0.5, 17, 11), { color: GREY, valign: "middle" })); y += 0.6; }
+    let lay = p.pasos.layout;
+    if (lay === "circulos" && partes.length > 6) lay = "tarjetas";
+    const list = partes.slice(0, 8), n = Math.max(1, list.length);
+    const nameOf = (pt, i) => pt.nombre || "Paso " + letter(i);
+    if (lay === "circulos") {
+      const gap = 0.3, W = 12.0, H = y1 - y;
+      const d = Math.min(3.0, (W - gap * (n - 1)) / n, H - 0.9);
+      const x0 = 0.85 + (W - (n * d + (n - 1) * gap)) / 2;
+      list.forEach((pt, i) => {
+        const x = x0 + i * (d + gap);
+        els.push({ t: "rect", shape: "ellipse", x, y, w: d, h: d, fill: "FFFFFF", line: { color: c.A, width: 3 } });
+        els.push(iconEl(c, pt.icono, x + d * 0.3, y + d * 0.13, d * 0.4, d * 0.36));
+        const nm = letter(i) + ". " + nameOf(pt, i).toUpperCase();
+        els.push(T(x + d * 0.13, y + d * 0.53, d * 0.74, d * 0.34, nm, fit([nm], d * 0.74, d * 0.34, 15, 7, 0.6), { bold: true, align: "center", valign: "top" }));
+        const rs = (pt.resumen || "").trim();
+        if (rs) els.push(T(x - 0.05, y + d + 0.15, d + 0.1, y1 - y - d - 0.15, rs, fit([rs], d + 0.1, y1 - y - d - 0.15, 14, 8), { color: GREY, align: "center", valign: "top" }));
+      });
+    } else if (lay === "lista") {
+      const H = y1 - y, d = Math.min(3.8, H), sx = 0.85, sy = y + (H - d) / 2, sw = round ? d : 4.3;
+      els.push(...slotEls(c, p.pasos.img, sx, sy, sw, d, round, "Imagen o gráfico", () => [
+        { t: "rect", shape: "ellipse", x: sx + (sw - d) / 2, y: sy, w: d, h: d, fill: "none", line: { color: c.A, width: 2.5, dash: "dot" } },
+        iconEl(c, "cerebro", sx + (sw - d) / 2 + d * 0.2, sy + d * 0.2, d * 0.6, d * 0.6),
+      ]));
+      const x = sx + sw + 0.6, w = 12.85 - x, rh = Math.min(1.35, H / n);
+      const top = y + (H - rh * n) / 2;
+      list.forEach((pt, i) => {
+        const ry = top + i * rh, is = Math.min(0.85, rh * 0.72);
+        els.push(iconEl(c, pt.icono, x, ry + (rh - is) / 2, is, is));
+        const paras = [{ text: String(i + 1).padStart(2, "0") + ". " + nameOf(pt, i).toUpperCase() + ":", bold: true, color: INK, after: 2 }]
+          .concat((pt.resumen || "").trim() ? [{ text: pt.resumen.trim(), color: GREY, size: 0.85 }] : []);
+        els.push({ t: "text", x: x + is + 0.3, y: ry, w: w - is - 0.3, h: rh, paras, size: fit(paras, w - is - 0.3, rh - 0.05, 16, 8, 0.52), valign: "middle" });
+      });
+    } else {
+      const rows = n > 4 ? 2 : 1, cols = Math.ceil(n / rows), gap = 0.42;
+      const W = 12.0, lh = rows === 1 ? 0.85 : 0;
+      const H = y1 - y - lh * rows;
+      const cw = (W - gap * (cols - 1)) / cols, ch = Math.min(rows === 1 ? 3.3 : 99, (H - 0.25 * (rows - 1)) / rows);
+      if (rows === 1) y += (H - ch) / 2;
+      list.forEach((pt, i) => {
+        const r = Math.floor(i / cols), k = i % cols, x = 0.85 + k * (cw + gap), yy = y + r * (ch + 0.25 + lh);
+        if (rows === 1) els.push(T(x, yy, cw, lh, letter(i), 44, { bold: true, color: c.A, align: "center", valign: "bottom" }));
+        const cy = yy + lh + (rows === 1 ? 0.1 : 0);
+        els.push({ t: "rect", x, y: cy, w: cw, h: ch - 0.1, fill: "FFFFFF", line: { color: c.A, width: 2.25 } });
+        if (k < cols - 1 && i < n - 1) els.push({ t: "rect", shape: "tri", x: x + cw + (gap - 0.24) / 2, y: cy + (ch - 0.1) / 2 - 0.12, w: 0.24, h: 0.24, fill: c.A });
+        const is = Math.min(0.95, ch * 0.3);
+        els.push(iconEl(c, pt.icono, x + (cw - is) / 2, cy + 0.25, is, is));
+        const nm = (rows === 1 ? "" : letter(i) + ". ") + nameOf(pt, i).toUpperCase(), rs = (pt.resumen || "").trim();
+        const paras = [{ text: nm, bold: true, color: INK, after: 6 }].concat(rs ? [{ text: rs, color: GREY, size: 0.82 }] : []);
+        const th = ch - 0.1 - is - 0.5;
+        els.push({ t: "text", x: x + 0.2, y: cy + is + 0.38, w: cw - 0.4, h: th, paras, size: fit(paras, cw - 0.4, th, 15, 8, 0.55, 6), align: "center", valign: "top" });
+      });
+    }
+    S.push({ name: "Pasos del proyecto", els });
+  }
+
+  // ----- Una lámina por parte -----
+  partes.forEach((pt, i) => {
+    const L = letter(i), nm = pt.nombre || "Paso " + L;
+    const { els, y0, y1 } = frame(c, L + ". " + nm);
+    let y = y0;
+    if ((pt.duracion || "").trim()) { els.push(T(0.85, y - 0.1, 11.2, 0.4, pt.duracion.trim(), 14, { bold: true, color: c.A, valign: "middle" })); y += 0.45; }
+    const comps = lines(pt.componentes);
+    const desc = (pt.descripcion || pt.resumen || "").trim();
+    const dparas = (desc || "Describe qué se hará en esta parte.").split("\n").filter(s => s.trim()).map(s => ({ text: s.trim(), after: 8, color: desc ? INK : "9A9A93" }));
+    const H = y1 - y;
+    if (pt.layout === "imagenDer" || pt.layout === "imagenIzq") {
+      const d = Math.min(4.5, H), sw = round ? d : 5.0, sh = round ? d : H;
+      const sx = pt.layout === "imagenDer" ? 12.85 - sw : 0.85, sy = y + (H - sh) / 2;
+      els.push(...slotEls(c, pt.img, sx, sy, sw, sh, round, "Imagen de la actividad o del proceso", () => [
+        { t: "rect", shape: round ? "ellipse" : undefined, x: sx, y: sy, w: sw, h: sh, fill: soft },
+        iconEl(c, pt.icono, sx + sw * 0.22, sy + sh * 0.22, sw * 0.56, sh * 0.56),
+      ]));
+      const tx = pt.layout === "imagenDer" ? 0.85 : sx + sw + 0.6, tw = 12.0 - sw - 0.6;
+      const paras = dparas.concat(comps.length ? [{ text: "¿QUÉ INCLUYE?", bold: true, color: c.A, size: 0.75, after: 4 }].concat(comps.map(t => ({ text: t, bullet: true, after: 4 }))) : []);
+      els.push({ t: "text", x: tx, y, w: tw, h: H, paras, size: fit(paras, tw, H, 18, 10, 0.5, 6), color: INK, valign: "middle" });
+    } else if (comps.length) {
+      const is = 0.95;
+      els.push(iconEl(c, pt.icono, 0.85, y, is, is, "left"));
+      els.push({ t: "text", x: 0.85, y: y + is + 0.25, w: 5.2, h: H - is - 0.25, paras: dparas, size: fit(dparas, 5.2, H - is - 0.25, 20, 11, 0.5, 8), color: INK, valign: "top" });
+      els.push({ t: "rect", x: 6.45, y, w: 6.4, h: H, fill: soft });
+      els.push(T(6.8, y + 0.3, 5.7, 0.35, "¿QUÉ INCLUYE?", 12, { bold: true, color: c.A, spacing: 1.5, valign: "middle" }));
+      const b = comps.map(t => ({ text: t, bullet: true, after: 6 }));
+      els.push({ t: "text", x: 6.8, y: y + 0.8, w: 5.7, h: H - 1.1, paras: b, size: fit(b, 5.7, H - 1.1, 18, 10, 0.5, 6), color: INK, valign: "top" });
+    } else {
+      const is = 1.6;
+      els.push(iconEl(c, pt.icono, 0.85, y + (H - is) / 2, is, is));
+      els.push({ t: "text", x: 3.0, y, w: 9.85, h: H, paras: dparas, size: fit(dparas, 9.85, H, 24, 12, 0.5, 8), color: INK, valign: "middle" });
+    }
+    S.push({ name: "Parte " + L, els });
+
+    // Láminas adicionales del paso (módulos, actividades, habilidades…)
+    pt.extras.forEach((x, j) => {
+      const f = frame(c, L + ". " + nm);
+      const els = f.els, y1 = f.y1;
+      let y = f.y0;
+      const tag = (x.etiqueta || "").trim(), tt = ((x.titulo || "").trim() || "Título de la lámina").toUpperCase();
+      const hora = (x.hora || "").trim(), frase = (x.frase || "").trim();
+      let hx = 0.85;
+      if (tag) {
+        const tw = Math.min(4.2, tag.length * 14 * 0.62 / 72 + 0.6);
+        els.push({ t: "rect", x: 0.85, y, w: tw, h: 0.5, fill: c.A });
+        els.push(T(0.85, y, tw, 0.5, tag.toUpperCase(), 14, { bold: true, color: onA, align: "center", valign: "middle" }));
+        hx = 0.85 + tw + 0.3;
+      }
+      const hw = hora ? 2.6 : 0;
+      els.push(T(hx, y, 12.85 - hx - hw, 0.5, tt, fit([tt], 12.85 - hx - hw, 0.5, 22, 11, 0.62), { bold: true, valign: "middle" }));
+      if (hora) els.push(T(12.85 - hw, y, hw, 0.5, hora, 13, { bold: true, color: c.A, spacing: 1, align: "right", valign: "middle" }));
+      y += 0.8;
+      const fh = frase ? 0.72 : 0;
+      const H = y1 - y;
+      const obj = (x.objetivo || "").trim(), cont = lines(x.contenido);
+      const paras = [];
+      if (obj) paras.push({ text: "OBJETIVO:", bold: true, color: c.A, size: 0.75, after: 3 }, { text: obj, after: 12 });
+      if (cont.length) { paras.push({ text: "CONTENIDO:", bold: true, color: c.A, size: 0.75, after: 3 }); cont.forEach(t => paras.push({ text: t, bullet: true, after: 4 })); }
+      if (!paras.length) paras.push({ text: "Escribe el objetivo y el contenido de esta lámina.", color: "9A9A93" });
+      if (x.layout === "imagenDer" || x.layout === "imagenIzq") {
+        const d = Math.min(4.3, H), sw = round ? d : 4.9, sh = round ? d : H;
+        const sx = x.layout === "imagenDer" ? 12.85 - sw : 0.85, sy = y + (H - sh) / 2;
+        els.push(...slotEls(c, x.img, sx, sy, sw, sh, round, "Imagen: " + ((x.titulo || "").trim() || "módulo o actividad"), () => [
+          { t: "rect", shape: round ? "ellipse" : undefined, x: sx, y: sy, w: sw, h: sh, fill: soft },
+          iconEl(c, x.icono, sx + sw * 0.22, sy + sh * 0.22, sw * 0.56, sh * 0.56),
+        ]));
+        const tx = x.layout === "imagenDer" ? 0.85 : sx + sw + 0.6, tw = 12.0 - sw - 0.6;
+        const th = H - (fh ? fh + 0.2 : 0);
+        els.push({ t: "text", x: tx, y, w: tw, h: th, paras, size: fit(paras, tw, th, 20, 10, 0.5), color: INK, valign: "middle" });
+        if (frase) els.push(...anchorEls(c, frase, tx, y1 - fh, tw, fh));
+      } else {
+        const is = 1.3, th = H - (fh ? fh + 0.2 : 0);
+        els.push(iconEl(c, x.icono, 0.85, y + 0.1, is, is));
+        els.push({ t: "text", x: 2.55, y, w: 10.3, h: th, paras, size: fit(paras, 10.3, th, 22, 10, 0.5), color: INK, valign: "top" });
+        if (frase) els.push(...anchorEls(c, frase, 2.55, y1 - fh, 10.3, fh));
+      }
+      S.push({ name: "Parte " + L + " · " + (tag || "Lámina " + (j + 1)), els });
+    });
+  });
+
+  // ----- Agenda o cronograma -----
+  if (p.agenda && p.agenda.incluir) {
+    const { els, y0, y1 } = frame(c, p.agenda.titulo || "Agenda");
+    let y = y0;
+    const sub = (p.agenda.subtitulo || "").trim();
+    if (sub) { els.push(T(0.85, y - 0.1, 11.63, 0.4, sub, 13, { color: GREY, align: "center", valign: "middle" })); y += 0.45; }
+    const filas = lines(p.agenda.filas).slice(0, 14).map(l => l.split("|").map(s => s.trim()));
+    const n = Math.max(1, filas.length), rh = Math.min(0.52, (y1 - y) / n);
+    const x0 = 1.15, W = 11.03, hw = 2.3, pw = 3.0;
+    filas.forEach((f, i) => {
+      const ry = y + i * rh, [hora, act, pilar] = [f[0] || "", f[1] || "", f[2] || ""], pausa = !pilar;
+      els.push({ t: "rect", x: x0, y: ry + 0.03, w: W, h: rh - 0.06, fill: pausa ? "FFFFFF" : "F4F4F2" });
+      const sz = Math.min(14, rh * 26);
+      els.push(T(x0 + 0.2, ry, hw, rh, hora, sz, { bold: !pausa, color: pausa ? GREY : c.A, valign: "middle" }));
+      els.push(T(x0 + 0.2 + hw, ry, W - hw - pw - 0.4, rh, act, fit([act], W - hw - pw - 0.4, rh, sz, 8), { bold: !pausa, italic: pausa, color: pausa ? GREY : INK, valign: "middle" }));
+      if (pilar) els.push(T(x0 + W - pw - 0.2, ry, pw, rh, pilar, fit([pilar], pw, rh, sz - 2, 8), { color: GREY, align: "right", valign: "middle" }));
+    });
+    S.push({ name: "Agenda", els });
+  }
+
+  // ----- Costos: una fila por paso, con su desglose debajo, y los costos adicionales al final. -----
+  // Si no caben, la tabla continúa en otra lámina.
+  {
+    const lineRow = (l, sub) => {
+      const q = hasNum(l.cantidad) ? fmtNum(num(l.cantidad)) + (l.unidad ? " " + l.unidad.trim() : "") : (l.unidad || "").trim();
+      return {
+        name: (l.concepto || "").trim() || "Concepto", qty: q,
+        unit: hasNum(l.cantidad) && hasNum(l.precio) ? money(num(l.precio)) : "",
+        total: hasNum(l.precio) ? money(lineTotal(l)) : "Incluido", sub, h: sub ? 0.4 : 0.48,
+      };
+    };
+    const rows = [];
+    partes.forEach((pt, i) => {
+      const L = letter(i), det = (pt.detalleValor || "").trim();
+      rows.push({ name: L + ". " + (pt.nombre || "Paso " + L), det, total: parteHas(pt) ? money(parteTotal(pt)) : "Incluido", head: true, h: det ? 0.64 : 0.48 });
+      pt.lineas.forEach(l => rows.push(lineRow(l, true)));
+    });
+    const otros = otrosOf(p);
+    if (otros.length) rows.push({ group: "COSTOS ADICIONALES", h: 0.42 });
+    otros.forEach(l => rows.push(lineRow(l, false)));
+    const qtyCols = rows.some(r => r.qty || r.unit);
+
+    const probe = frame(c, p.inv.titulo || "Inversión");
+    const x = 0.85, w = 7.75, top = probe.y0, hh = 0.5, bottom = probe.y1 - 0.08;
+    const desc = num(p.inv.descValor), hasDesc = desc > 0;
+    const extra = (hasDesc ? 0.45 : 0) + (p.inv.mostrarTotal ? 0.72 : 0);
+    const cap = bottom - (top + hh);
+    const pages = [[]]; let used = 0;
+    rows.forEach((r, k) => {
+      let need = r.h;
+      if ((r.head || r.group) && rows[k + 1] && (rows[k + 1].sub || !rows[k + 1].head)) need += rows[k + 1].h; // no dejar un título solo al final
+      if (used + need > cap && pages[pages.length - 1].length) { pages.push([]); used = 0; }
+      pages[pages.length - 1].push(r); used += r.h;
+    });
+    if (used + extra > cap) pages.push([]);
+
+    const tw = 1.65, uw = 1.35, qw = 1.35;
+    const totX = x + w - 0.2 - tw, unitX = totX - 0.1 - uw, qtyX = unitX - 0.1 - qw;
+    const nameX = x + 0.25, nameW = (qtyCols ? qtyX : totX) - nameX - 0.1;
+
+    pages.forEach((pg, pi) => {
+      const last = pi === pages.length - 1;
+      const { els } = frame(c, (p.inv.titulo || "Inversión") + (pi > 0 ? " (cont.)" : ""));
+      els.push({ t: "rect", x, y: top, w, h: hh, fill: c.A });
+      const th = (text, cx, cw, align) => els.push(T(cx, top, cw, hh, text, 11, { bold: true, color: onA, spacing: 1, align, valign: "middle" }));
+      th("CONCEPTO", nameX, nameW, "left");
+      if (qtyCols) { th("CANTIDAD", qtyX, qw, "center"); th("P. UNITARIO", unitX, uw, "right"); }
+      th(qtyCols ? "TOTAL" : "INVERSIÓN", totX, tw, "right");
+
+      const room = cap - (last ? extra : 0), sumH = pg.reduce((s, r) => s + r.h, 0);
+      const k = sumH ? Math.max(1, Math.min(1.4, room / sumH)) : 1;
+      let y = top + hh;
+      pg.forEach(r => {
+        const rh = r.h * k;
+        if (r.group) {
+          els.push(T(nameX, y, w - 0.5, rh, r.group, 11, { bold: true, color: c.A, spacing: 1, valign: "bottom" }));
+          y += rh; return;
+        }
+        const ind = r.sub ? 0.3 : 0, base = r.sub ? Math.min(13, 11.5 * k) : Math.min(16, 14 * k);
+        const paras = [{ text: r.name, bold: !r.sub, color: r.sub ? GREY : INK }].concat(r.det ? [{ text: r.det, size: 0.8, color: GREY, bold: false }] : []);
+        els.push({ t: "text", x: nameX + ind, y: y + 0.03, w: nameW - ind, h: rh - 0.06, paras, size: fit(paras, nameW - ind, rh - 0.06, base, 7, 0.52), valign: "middle" });
+        const cell = (text, cx, cw, align) => text && els.push(T(cx, y, cw, rh, text, fit([text], cw, rh, base, 7, 0.55), { bold: !r.sub, color: r.sub ? GREY : INK, align, valign: "middle" }));
+        if (qtyCols) { cell(r.qty, qtyX, qw, "center"); cell(r.unit, unitX, uw, "right"); }
+        cell(r.total, totX, tw, "right");
+        els.push({ t: "rect", x: r.sub ? nameX + ind : x, y: y + rh - 0.012, w: r.sub ? x + w - nameX - ind : w, h: 0.012, fill: r.sub ? "ECEBE6" : RULE });
+        y += rh;
+      });
+      if (last) {
+        if (hasDesc) {
+          els.push(T(nameX, y, w - tw - 0.6, 0.45, p.inv.descLabel || "Descuento", 13, { color: GREY, valign: "middle" }));
+          els.push(T(totX - 0.6, y, tw + 0.6, 0.45, "– " + money(desc), 14, { color: GREY, align: "right", valign: "middle" }));
+          y += 0.45;
+        }
+        if (p.inv.mostrarTotal) {
+          els.push({ t: "rect", x, y: y + 0.12, w, h: 0.58, fill: soft });
+          els.push(T(nameX, y + 0.12, 4, 0.58, "TOTAL DE INVERSIÓN", 14, { bold: true, spacing: 1, valign: "middle" }));
+          els.push(T(x + w - 3.4, y + 0.12, 3.2, 0.58, money(grandTotal(p) - desc), 20, { bold: true, color: c.A, align: "right", valign: "middle" }));
+        }
+      }
+      // Notas
+      const nx = 8.95, nw = 3.9, nh = bottom - top;
+      els.push({ t: "rect", x: nx, y: top, w: nw, h: nh, fill: LIGHT });
+      const is = 0.75;
+      els.push(iconEl(c, "dolar", nx + 0.3, top + 0.25, is, is, "left"));
+      const notes = [];
+      notes.push({ text: "Valores en USD más impuestos de ley.", bold: true, color: INK, after: 10 });
+      const ni = lines(p.inv.noIncluye);
+      if (ni.length) { notes.push({ text: "Los honorarios no incluyen:", bold: true, color: INK, after: 4 }); ni.forEach((t, j) => notes.push({ text: t, bullet: true, color: GREY, after: j === ni.length - 1 ? 10 : 3 })); }
+      if ((p.inv.formaPago || "").trim()) { notes.push({ text: "Forma de pago:", bold: true, color: INK, after: 3 }); notes.push({ text: p.inv.formaPago.trim(), color: GREY }); }
+      const ny = top + 0.25 + is + 0.2;
+      els.push({ t: "text", x: nx + 0.3, y: ny, w: nw - 0.6, h: top + nh - ny - 0.2, paras: notes, size: fit(notes, nw - 0.6, top + nh - ny - 0.2, 13, 8, 0.5, 5), valign: "top" });
+      S.push({ name: pages.length > 1 ? "Costos (" + (pi + 1) + " de " + pages.length + ")" : "Costos", els });
+    });
+  }
+
+  // ----- Cierre -----
+  const cierre = p.tpl.cierre;
+  const C = [
+    ["Ecuador", "+593 99 400 0015 · +593 99 979 3141"], ["Perú", "+51 985 478 443 · +51 943 456 071"],
+    ["Colombia", "+57 320 9019029 · +57 310 4891592"], ["República Dominicana", "+1 (829) 452-2381 · +1 (809) 839-6663"],
+    ["Chile", "+56 9 6289 5210"], ["Bolivia", "+591 69999809"], ["El Salvador", "+503 7486 3128"],
+  ];
+  if (cierre === "ambos") {
+    // Una sola lámina: mapa a la izquierda, logo y contactos por país a la derecha
+    const els = [];
+    const m = GA.mapa;
+    if (m) els.push(imgAt(m.src, 0.6, 0.3, 6.9 * m.w / m.h, 6.9));
+    const x = 6.35, w = 12.85 - x;
+    els.push(gmLogo(x + (w - 2.6) / 2, 0.45, 2.6));
+    els.push(T(x, 1.9, w, 0.45, "Somos Grupo Macro desde 1999  ·  #TransformamosCultura", 14, { italic: true, color: GREY, align: "center", valign: "middle" }));
+    els.push({ t: "line", x: x + 0.3, y: 2.5, w: w - 0.6, h: 0, color: "8A8A84", width: 1.5, dash: "dot" });
+    const cw = (w - 0.3) / 2, rh = 0.78;
+    C.forEach(([pais, tel], i) => {
+      const k = i % 2, r = Math.floor(i / 2), cx = x + k * (cw + 0.3), cy = 2.75 + r * rh;
+      els.push(iconEl(c, "ubicacion", cx, cy + 0.1, 0.42, 0.42));
+      const paras = [{ text: pais, bold: true, color: INK }].concat(tel.split(" · ").map(t => ({ text: t, color: GREY, size: 0.85 })));
+      els.push({ t: "text", x: cx + 0.55, y: cy, w: cw - 0.55, h: rh - 0.05, paras, size: fit(paras, cw - 0.55, rh - 0.05, 13, 8, 0.5), valign: "top" });
+    });
+    els.push(T(x, 6.15, w, 0.4, "www.gmacro.com  ·  gmacro@gmacro.com", 14, { bold: true, color: c.A, align: "center", valign: "middle" }));
+    els.push(T(x, 6.55, w, 0.35, "LinkedIn: GRUPO MACRO - LATAM  ·  Instagram: @grupomacro_latam", 11, { color: GREY, align: "center", valign: "middle" }));
+    S.push({ name: "Cierre con contactos", els });
+  }
+  if (cierre === "contacto") {
+    const { els, y0 } = frame(c, "Contáctanos");
+    const cw = 5.6;
+    C.forEach(([pais, tel], i) => {
+      const k = i % 2, r = Math.floor(i / 2), x = 0.85 + k * (cw + 0.4), y = y0 + 0.1 + r * 0.95;
+      els.push(iconEl(c, "ubicacion", x, y + 0.08, 0.55, 0.55));
+      els.push({ t: "text", x: x + 0.75, y, w: cw - 0.8, h: 0.7, paras: [{ text: pais, bold: true, color: INK }, { text: tel, color: GREY, size: 0.9 }], size: 16, valign: "middle" });
+    });
+    els.push(T(0.85, y0 + 3.95, 11.6, 0.5, "www.gmacro.com   ·   gmacro@gmacro.com   ·   LinkedIn: GRUPO MACRO - LATAM   ·   Instagram: @grupomacro_latam", 14, { bold: true, color: c.A, valign: "middle" }));
+    S.push({ name: "Contacto", els });
+  }
+  if (cierre === "clase") {
+    const els = [];
+    const m = GA.mapa;
+    if (m) els.push(imgAt(m.src, 0.8, 0.25, 7.0 * m.w / m.h, 7.0));
+    const x = 6.6, w = 6.25, cx = x + w / 2;
+    els.push(T(x, 0.95, w, 0.8, "Somos clase mundial", 32, { bold: true, align: "center", valign: "middle" }));
+    if (GA.barraColor) els.push(imgAt(GA.barraColor.src, cx - 1.8, 1.82, 3.6, 0.06));
+    [["7", "países"], ["27", "años"]].forEach(([nn, lb], i) => {
+      const bx = x + 0.6 + i * (w - 1.2) / 2, bw = (w - 1.2) / 2;
+      els.push(T(bx, 2.25, bw, 1.1, nn, 60, { bold: true, align: "center", valign: "middle" }));
+      els.push(T(bx, 3.3, bw, 0.4, lb, 15, { color: GREY, align: "center", valign: "middle" }));
+    });
+    els.push(T(x, 4.15, w, 0.5, "Ecuador · Colombia · Perú · Bolivia · Chile · El Salvador · República Dominicana", 12, { color: GREY, align: "center", valign: "middle" }));
+    els.push(T(x, 5.0, w, 0.4, "www.gmacro.com  ·  gmacro@gmacro.com", 13, { color: GREY, align: "center", valign: "middle" }));
+    els.push(T(x, 5.4, w, 0.4, "#TransformamosCultura", 14, { bold: true, color: c.A, align: "center", valign: "middle" }));
+    if (p.logo) els.push(logoBox(p.logo, x + (w - 2.4) / 2, 6.25, 2.4, 0.7, "center"));
+    S.push({ name: "Cierre", els });
+  }
+  if (cierre === "mapa") {
+    const els = [];
+    const m = GA.mapa;
+    if (m) els.push(imgAt(m.src, 0.9, 0.3, 6.9 * m.w / m.h, 6.9));
+    els.push(gmLogo(7.25, 1.5, 4.4));
+    els.push(T(6.75, 3.95, 5.4, 0.45, "#TransformamosCultura", 16, { italic: true, color: GREY, align: "center", valign: "middle" }));
+    els.push(T(6.75, 4.5, 5.4, 0.55, "Somos Grupo Macro desde 1999", 22, { italic: true, align: "center", valign: "middle" }));
+    els.push(T(6.75, 5.2, 5.4, 0.7, "Ecuador · Perú · Chile · Bolivia · Colombia · República Dominicana · El Salvador", 12, { color: GREY, align: "center", valign: "middle" }));
+    els.push(T(6.75, 6.25, 5.4, 0.4, "www.gmacro.com  ·  gmacro@gmacro.com", 13, { bold: true, color: c.A, align: "center", valign: "middle" }));
+    S.push({ name: "Cierre", els });
+  }
+  return S;
+}
+
+// ---------- Vista previa HTML ----------
+const pct = (v, total) => (v / total * 100) + "%";
+const cq = pt => (pt / 72 / SW * 100) + "cqw";
+function rgba(h, a) { const n = parseInt(h, 16); return "rgba(" + (n >> 16 & 255) + "," + (n >> 8 & 255) + "," + (n & 255) + "," + a + ")"; }
+function renderSlide(sl) {
+  const d = document.createElement("div"); d.className = "slide";
+  for (const e of sl.els) {
+    let n;
+    if (e.t === "rect") {
+      n = document.createElement("div");
+      n.style.background = e.fill && e.fill !== "none" ? rgba(e.fill, e.alpha ?? 1) : "transparent";
+      if (e.line) n.style.border = cq(e.line.width) + (e.line.dash === "dot" ? " dotted #" : " solid #") + e.line.color;
+      if (e.shape === "ellipse") n.style.borderRadius = "50%";
+      if (e.shape === "tri") n.style.clipPath = "polygon(0 0, 100% 50%, 0 100%)";
+    } else if (e.t === "line") {
+      n = document.createElement("div");
+      const b = cq(e.width) + (e.dash === "dot" ? " dotted #" : " solid #") + e.color;
+      if (e.h === 0) n.style.borderTop = b; else n.style.borderLeft = b;
+    } else if (e.t === "img") {
+      n = document.createElement("img"); n.alt = "";
+      n.src = e.src;
+      n.style.objectFit = e.fit === "cover" ? "cover" : "fill";
+      if (e.round) n.style.borderRadius = "50%";
+    } else if (e.t === "ph") {
+      n = document.createElement("div"); n.className = "ph";
+      n.style.fontSize = cq(11);
+      n.textContent = "＋ " + (e.label || "Espacio para imagen") + (e.prompt ? "\n✦ Prompt para Gemini listo" : "");
+      n.style.whiteSpace = "pre-line";
+      if (e.round) n.style.borderRadius = "50%";
+    } else {
+      n = document.createElement("div"); n.className = "tx";
+      n.style.fontSize = cq(e.size);
+      n.style.color = "#" + (e.color || INK);
+      n.style.fontWeight = e.bold ? "700" : "400";
+      if (e.italic) n.style.fontStyle = "italic";
+      n.style.textAlign = e.align || "left";
+      n.style.justifyContent = e.valign === "middle" ? "center" : e.valign === "bottom" ? "flex-end" : "flex-start";
+      if (e.spacing) n.style.letterSpacing = cq(e.spacing);
+      for (const p of e.paras) {
+        const q = document.createElement("div"); q.className = "p" + (p.bullet ? " b" : "");
+        q.textContent = p.text;
+        if (p.size) q.style.fontSize = (p.size * 100) + "%";
+        if (p.bold !== undefined) q.style.fontWeight = p.bold ? "700" : "400";
+        if (p.italic) q.style.fontStyle = "italic";
+        if (p.color) q.style.color = "#" + p.color;
+        if (p.after) q.style.marginBottom = cq(p.after);
+        n.appendChild(q);
+      }
+    }
+    n.classList.add("el");
+    n.style.left = pct(e.x, SW); n.style.top = pct(e.y, SH);
+    n.style.width = pct(e.w, SW); n.style.height = pct(e.h, SH);
+    d.appendChild(n);
+  }
+  return d;
+}
+
+// ---------- Exportar a PowerPoint ----------
+const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+// Recorta las fotos al tamaño exacto del espacio (y en círculo si corresponde)
+const cropCache = new Map();
+async function cropImage(src, w, h, round) {
+  const key = src.length + ":" + src.slice(-40) + ":" + w.toFixed(2) + ":" + h.toFixed(2) + ":" + !!round;
+  if (cropCache.has(key)) return cropCache.get(key);
+  const im = await loadImg(src);
+  const pw = Math.round(Math.min(1600, w * 170)), ph = Math.round(pw * h / w);
+  const cv = document.createElement("canvas"); cv.width = pw; cv.height = ph;
+  const g = cv.getContext("2d");
+  const s = Math.max(pw / im.naturalWidth, ph / im.naturalHeight);
+  const dw = im.naturalWidth * s, dh = im.naturalHeight * s;
+  if (round) { g.beginPath(); g.ellipse(pw / 2, ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2); g.clip(); }
+  g.drawImage(im, (pw - dw) / 2, (ph - dh) / 2, dw, dh);
+  const out = round ? cv.toDataURL("image/png") : cv.toDataURL("image/jpeg", 0.86);
+  cropCache.set(key, out);
+  return out;
+}
+async function prepImages(slides) {
+  for (const sl of slides) for (const e of sl.els)
+    if (e.t === "img" && (e.fit === "cover" || e.round)) e.src = await cropImage(e.src, e.w, e.h, e.round);
+}
+function buildPptx(p, slides) {
+  const pptx = new PptxGenJS();
+  pptx.defineLayout({ name: "GM", width: SW, height: SH });
+  pptx.layout = "GM";
+  pptx.author = "Grupo Macro"; pptx.company = "Grupo Macro";
+  pptx.title = [p.titulo, p.cliente].filter(Boolean).join(" – ");
+  const rounds = [];   // por lámina: qué espacios de imagen son circulares
+  let mi = 0;
+  for (const sl of slides) {
+    const phs = sl.els.filter(e => e.t === "ph");
+    let master = null;
+    if (phs.length) {
+      master = "GM_IMG_" + (++mi);
+      pptx.defineSlideMaster({
+        title: master, background: { color: "FFFFFF" },
+        objects: phs.map((e, k) => ({ placeholder: {
+          options: { name: master + "_" + k, type: "pic", x: e.x, y: e.y, w: e.w, h: e.h, align: "center", valign: "middle", fontSize: e.prompt ? 8 : 12, color: "8A8A84", fontFace: "Calibri", margin: 8 },
+          text: e.prompt ? "Prompt para Gemini (" + e.ar + "): " + fullPrompt(e.prompt, e.ar) : "Haz clic en el ícono para agregar una imagen",
+        } })),
+      });
+    }
+    rounds.push(phs.map(e => !!e.round));
+    const s = master ? pptx.addSlide({ masterName: master }) : pptx.addSlide();
+    s.background = { color: "FFFFFF" };
+    const withPrompt = phs.filter(e => e.prompt);
+    if (withPrompt.length) s.addNotes(withPrompt.map(e => "PROMPT GEMINI (" + e.ar + ") · " + (e.nombre || "imagen") + ":\n" + fullPrompt(e.prompt, e.ar)).join("\n\n")
+      + "\n\nGenera la imagen en Gemini y colócala con el ícono de imagen del marcador.");
+    let k = 0;
+    for (const e of sl.els) {
+      if (e.t === "ph") { s.addText("", { placeholder: master + "_" + (k++) }); continue; }
+      if (e.t === "rect") {
+        const fill = !e.fill || e.fill === "none" ? { type: "none" } : { color: e.fill, transparency: e.alpha != null ? Math.round((1 - e.alpha) * 100) : 0 };
+        const line = e.line ? { color: e.line.color, width: e.line.width, dashType: e.line.dash === "dot" ? "sysDot" : "solid" } : { type: "none" };
+        if (e.shape === "tri") s.addShape("triangle", { x: e.x, y: e.y, w: e.w, h: e.h, fill, line, rotate: 90 });
+        else s.addShape(e.shape === "ellipse" ? "ellipse" : "rect", { x: e.x, y: e.y, w: e.w, h: e.h, fill, line });
+      } else if (e.t === "line") {
+        s.addShape("line", { x: e.x, y: e.y, w: e.w, h: e.h, line: { color: e.color, width: e.width, dashType: e.dash === "dot" ? "sysDot" : "solid" } });
+      } else if (e.t === "img") {
+        s.addImage({ data: e.src.replace(/^data:/, ""), x: e.x, y: e.y, w: e.w, h: e.h });
+      } else {
+        const runs = e.paras.map((q, i) => ({
+          text: q.text,
+          options: {
+            fontSize: Math.round((q.size || 1) * e.size * 2) / 2,
+            bold: q.bold !== undefined ? q.bold : !!e.bold,
+            italic: q.italic !== undefined ? q.italic : !!e.italic,
+            color: q.color || e.color || INK,
+            bullet: q.bullet ? { indent: 14 } : false,
+            paraSpaceAfter: q.after || 0,
+            breakLine: i < e.paras.length - 1,
+          },
+        }));
+        s.addText(runs, {
+          x: e.x, y: e.y, w: e.w, h: e.h, margin: 0, fontFace: "Calibri", fontSize: e.size,
+          align: e.align || "left", valign: e.valign || "top", charSpacing: e.spacing || 0,
+          lineSpacingMultiple: 1.0, fit: "none",
+        });
+      }
+    }
+  }
+  return { pptx, rounds };
+}
+// PptxGenJS no marca los espacios como "imagen": se corrige en el XML para que PowerPoint muestre el botón de insertar imagen
+async function patchPlaceholders(buf, rounds) {
+  if (typeof JSZip === "undefined") return buf;
+  const z = await JSZip.loadAsync(buf);
+  for (let i = 0; i < rounds.length; i++) {
+    if (!rounds[i].length) continue;
+    const sp = "ppt/slides/slide" + (i + 1) + ".xml";
+    if (!z.file(sp)) continue;
+    let xml = await z.file(sp).async("string");
+    const idxRound = {};
+    let k = 0;
+    xml = xml.replace(/<p:sp>[\s\S]*?<\/p:sp>/g, blk => {
+      const m = blk.match(/<p:ph\s+idx="(\d+)"/);
+      if (!m) return blk;
+      const r = !!rounds[i][k++]; idxRound[m[1]] = r;
+      blk = blk.replace(/<p:ph(\s+)idx=/, '<p:ph type="pic"$1idx=');
+      return r ? blk.replace('prst="rect"', 'prst="ellipse"') : blk;
+    });
+    z.file(sp, xml);
+    const rel = z.file("ppt/slides/_rels/slide" + (i + 1) + ".xml.rels");
+    const lm = rel && (await rel.async("string")).match(/slideLayouts\/(slideLayout\d+\.xml)/);
+    if (!lm) continue;
+    const lp = "ppt/slideLayouts/" + lm[1];
+    let lx = await z.file(lp).async("string");
+    lx = lx.replace(/<p:sp>[\s\S]*?<\/p:sp>/g, blk => {
+      const m = blk.match(/<p:ph\s+idx="(\d+)"/);
+      if (!m || !(m[1] in idxRound)) return blk;
+      blk = blk.replace(/<p:ph(\s+)idx=/, '<p:ph type="pic"$1idx=');
+      return idxRound[m[1]] ? blk.replace('prst="rect"', 'prst="ellipse"') : blk;
+    });
+    z.file(lp, lx);
+  }
+  return z.generateAsync({ type: "arraybuffer" });
+}
+
+// ---------- Íconos e imágenes ----------
+const TINT = new Map(), tintBusy = new Set();
+async function tintAsync(key, A) {
+  const k = key + "|" + A;
+  if (TINT.has(k)) return TINT.get(k);
+  const ic = GA.icons[key]; const im = await loadImg(ic.bn);
+  const cv = document.createElement("canvas"); cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+  const g = cv.getContext("2d"); g.drawImage(im, 0, 0);
+  g.globalCompositeOperation = "source-in"; g.fillStyle = "#" + A; g.fillRect(0, 0, cv.width, cv.height);
+  const u = cv.toDataURL("image/png"); TINT.set(k, u); return u;
+}
+function iconFor(key, style, A) {
+  const ic = GA.icons[key] || GA.icons.estrella;
+  if (style === "color") return { src: ic.color, w: ic.w, h: ic.h };
+  if (style === "acento") {
+    const k = key + "|" + A;
+    if (TINT.has(k)) return { src: TINT.get(k), w: ic.bw, h: ic.bh };
+    if (!tintBusy.has(k)) { tintBusy.add(k); tintAsync(key, A).then(() => renderPreviewSoon()).catch(() => {}).finally(() => tintBusy.delete(k)); }
+  }
+  return { src: ic.bn, w: ic.bw, h: ic.bh };
+}
+function usedIcons(p) { return new Set(["cerebro", "lupa", "mascara", "engranajes", "dolar", "ubicacion"].concat(p.partes.map(x => x.icono), ...p.partes.map(x => x.extras.map(e => e.icono)))); }
+
+// Imágenes subidas: se guardan comprimidas en la base de datos (colección "imagenes") y se cachean aquí
+const IMG = new Map(), imgPending = new Set();
+function imgGet(id) {
+  if (!id) return null;
+  if (IMG.has(id)) return IMG.get(id);
+  const li = state.localImgs && state.localImgs[id];
+  if (li) { IMG.set(id, li); return li; }
+  if (db && !imgPending.has(id)) {
+    imgPending.add(id);
+    db.collection("imagenes").doc(id).get().then(s => {
+      if (s.exists) {
+        const d = s.data(); IMG.set(id, { src: d.data, w: d.w, h: d.h });
+        document.querySelectorAll('img[data-img-id="' + id + '"]').forEach(t => { t.src = d.data; });
+        renderPreviewSoon();
+      }
+    }).catch(() => {}).finally(() => imgPending.delete(id));
+  }
+  return null;
+}
+function slotIds(p) {
+  return [p.portadaImg, p.ante.img, p.pasos.img].concat(p.partes.map(x => x.img), ...p.partes.map(x => x.extras.map(e => e.img)))
+    .filter(s => s && s.mode === "img" && s.id).map(s => s.id);
+}
+async function ensureImages(p) {
+  for (const id of slotIds(p)) {
+    if (IMG.has(id) || (state.localImgs && state.localImgs[id])) continue;
+    if (!db) continue;
+    try { const s = await db.collection("imagenes").doc(id).get(); if (s.exists) { const d = s.data(); IMG.set(id, { src: d.data, w: d.w, h: d.h }); } } catch {}
+  }
+}
+const makeEnv = () => ({ img: imgGet, icon: iconFor });
+
+async function compressImage(file) {
+  const src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+  const im = await loadImg(src);
+  let max = 1400;
+  for (let round = 0; round < 4; round++) {
+    const s = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+    const w = Math.max(1, Math.round(im.naturalWidth * s)), h = Math.max(1, Math.round(im.naturalHeight * s));
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    const g = cv.getContext("2d"); g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, w, h); g.drawImage(im, 0, 0, w, h);
+    for (const q of [0.82, 0.72, 0.62, 0.52]) {
+      const u = cv.toDataURL("image/jpeg", q);
+      if (u.length < 230000) return { src: u, w, h };
+    }
+    max = Math.round(max * 0.75);
+  }
+  throw new Error("muy_grande");
+}
+async function storeImage(file) {
+  setStatus("Subiendo imagen…");
+  const im = await compressImage(file);
+  const id = uid();
+  IMG.set(id, im);
+  if (db) await db.collection("imagenes").doc(id).set({ data: im.src, w: im.w, h: im.h, propuesta: state.id, at: Date.now() });
+  else { state.localImgs = state.localImgs || {}; state.localImgs[id] = im; }
+  setStatus("Imagen agregada");
+  return { mode: "img", id, w: im.w, h: im.h };
+}
+
+// ---------- Estado y persistencia ----------
+let state = ejemplo();
+let saved = [];               // propuestas guardadas
+let db = null, downloads = null;
+const inArtifact = false;   // versión independiente (Vercel): descargas directas del navegador
+
+// ---------- Servidor del equipo (Vercel) ----------
+let idToken = null;
+async function api(path, opts = {}) {
+  if (!idToken) { pedirLogin(); throw { code: "sesion", message: "Inicia sesión para continuar." }; }
+  let r;
+  try {
+    r = await fetch(path, { ...opts, headers: { ...(opts.body ? { "Content-Type": "application/json" } : {}), Authorization: "Bearer " + idToken } });
+  } catch (e) {
+    if (e && e.name === "AbortError") throw { code: "cancelled" };
+    throw { code: "upstream_error", message: "Sin conexión con el servidor. Revisa tu internet y vuelve a intentar." };
+  }
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { pedirLogin(j.error); throw { code: "sesion", message: j.error || "Vuelve a iniciar sesión.", status: 401 }; }
+  if (!r.ok) throw { code: j.code || "upstream_error", message: j.error || "El servidor respondió con un error (" + r.status + ").", status: r.status };
+  return j;
+}
+// Misma forma que la base de datos que usaba la versión de claude.ai, para no cambiar el resto del código
+function makeDb() {
+  return {
+    collection(col) {
+      const q = {
+        doc: id => ({
+          async set(data) { await api("/api/docs", { method: "PUT", body: JSON.stringify({ col, id, data }) }); },
+          async get() {
+            try { const r = await api("/api/docs?col=" + col + "&id=" + encodeURIComponent(id)); return { exists: true, data: () => r.data }; }
+            catch (e) { if (e && e.status === 404) return { exists: false, data: () => undefined }; throw e; }
+          },
+          async delete() { await api("/api/docs?col=" + col + "&id=" + encodeURIComponent(id), { method: "DELETE" }); },
+        }),
+        orderBy() { return q; },
+        limit() { return q; },
+        // La lista se actualiza al abrir, cada 30 segundos y al volver a la pestaña
+        onSnapshot(next, onErr) {
+          const cargar = () => api("/api/docs?col=" + col).then(r => next({ docs: (r.lista || []).map(x => ({ data: () => x })) })).catch(e => onErr && onErr(e));
+          refrescarLista = cargar;
+          cargar();
+          setInterval(() => { if (document.visibilityState === "visible") cargar(); }, 30000);
+          document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") cargar(); });
+          return () => {};
+        },
+      };
+      return q;
+    },
+  };
+}
+let refrescarLista = () => {};
+async function fileToDataURL(f, max = 1400) {
+  const src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+  const im = await loadImg(src);
+  const s = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+  const cv = document.createElement("canvas"); cv.width = Math.round(im.naturalWidth * s); cv.height = Math.round(im.naturalHeight * s);
+  const g = cv.getContext("2d"); g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(im, 0, 0, cv.width, cv.height);
+  return cv.toDataURL("image/jpeg", 0.85);
+}
+// Misma forma que la IA de claude.ai (sample), pero responde Gemini a través del servidor
+function makeSample() {
+  const f = async (input, opts = {}) => {
+    const body = { modo: "texto", prompt: typeof input === "string" ? input : input.map(m => m.content).join("\n\n") };
+    if (opts.images) { const im = opts.images instanceof FileList ? opts.images[0] : Array.isArray(opts.images) ? opts.images[0] : opts.images; body.imagen = await fileToDataURL(im); }
+    const r = await api("/api/ia", { method: "POST", body: JSON.stringify(body), signal: opts.signal });
+    if (opts.onText) opts.onText({ text: r.text, delta: r.text });
+    return { text: r.text, truncated: false };
+  };
+  f.json = async (input, opts = {}) => {
+    const r = await api("/api/ia", { method: "POST", body: JSON.stringify({ modo: "json", prompt: input }), signal: opts.signal });
+    return r.json;
+  };
+  return f;
+}
+async function openById(id) {
+  setStatus("Abriendo…");
+  try {
+    const s = await db.collection("propuestas").doc(id).get();
+    if (s.exists) { touched = true; openDoc(s.data()); } else setStatus("Esa propuesta ya no existe.", true);
+  } catch (e) { if (!(e && e.code === "sesion")) setStatus("No se pudo abrir la propuesta.", true); }
+}
+const LS_KEY = "gm-propuestas-v1", LS_OPEN = "gm-propuesta-abierta";
+let touched = false;
+
+const $ = id => document.getElementById(id);
+const statusEl = $("status");
+function setStatus(t, err) { statusEl.textContent = t; statusEl.classList.toggle("err", !!err); }
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+function localList() { try { return JSON.parse(lsGet(LS_KEY) || "[]"); } catch { return []; } }
+
+let saving = false, again = false, saveTimer = 0;
+function scheduleSave() { clearTimeout(saveTimer); setStatus("Cambios sin guardar"); saveTimer = setTimeout(persist, 1500); }
+async function persist() {
+  if (state.ejemplo) return;
+  if (saving) { again = true; return; }
+  saving = true; setStatus("Guardando…");
+  state.updatedAt = Date.now();
+  const doc = JSON.parse(JSON.stringify(state));
+  if (db) delete doc.localImgs;
+  if (doc.notas && doc.notas.length > 150000) doc.notas = doc.notas.slice(0, 150000);   // el documento tiene un límite de tamaño
+  try {
+    if (db) {
+      try { await db.collection("propuestas").doc(doc.id).set(doc); }
+      catch (e) {
+        if (e && e.code === "unavailable") { await new Promise(r => setTimeout(r, 800 + Math.random() * 800)); await db.collection("propuestas").doc(doc.id).set(doc); }
+        else throw e;
+      }
+    } else {
+      const list = localList().filter(x => x.id !== doc.id); list.unshift(doc);
+      lsSet(LS_KEY, JSON.stringify(list)); saved = list; renderPicker();
+    }
+    lsSet(LS_OPEN, doc.id);
+    if (db) { saved = [{ id: doc.id, cliente: doc.cliente, titulo: doc.titulo, updatedAt: doc.updatedAt }].concat(saved.filter(x => x.id !== doc.id)); renderPicker(); }
+    setStatus("Guardado " + new Date().toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }));
+  } catch (e) {
+    const code = e && e.code;
+    setStatus(code === "quota_exceeded" ? "No se guardó: el espacio está lleno. Elimina propuestas antiguas."
+      : e && e.message ? "No se guardó: " + e.message
+      : "No se guardó. Revisa tu conexión y vuelve a intentar.", true);
+  } finally {
+    saving = false;
+    if (again) { again = false; persist(); }
+  }
+}
+
+function markEdited() {
+  touched = true;
+  if (state.ejemplo) { state.ejemplo = false; $("exampleBanner").hidden = true; }
+  scheduleSave(); renderPreviewSoon(); renderTotals();
+}
+
+// ---------- Editor ----------
+const getK = (o, k) => k.split(".").reduce((a, b) => a && a[b], o);
+function setK(o, k, v) { const ks = k.split("."); const last = ks.pop(); ks.reduce((a, b) => a[b], o)[last] = v; }
+
+function fillForm() {
+  document.querySelectorAll("#editor [data-k]").forEach(el => {
+    const v = getK(state, el.dataset.k);
+    if (el.type === "checkbox") el.checked = !!v;
+    else if (el.type === "radio") el.checked = el.value === v;
+    else el.value = v ?? "";
+  });
+  $("exampleBanner").hidden = !state.ejemplo;
+  $("iaOut").hidden = !state.iaAnalisis; $("iaAnalisis").textContent = state.iaAnalisis || "";
+  $("iaRespWrap").hidden = !state.iaAnalisis && !state.iaResp;
+  renderSwatches(); renderLogo(); renderSlots(); renderPartes(); renderOtros(); renderTotals(); renderPreview(); renderPicker();
+  growAll();
+  document.querySelectorAll("#editor textarea[data-ai]").forEach(t => t.dispatchEvent(new Event("ai-refresh")));
+  if (state.logo && !state.logo.colors) {
+    const lg = state.logo;
+    logoColors(lg.data).then(c => { if (state.logo === lg) { lg.colors = c; renderSwatches(); } });
+  }
+}
+
+// Las cajas de texto crecen con el contenido
+function grow(t) {
+  if (!t || t.tagName !== "TEXTAREA" || t.offsetParent === null) return;
+  t.style.height = "auto"; t.style.height = (t.scrollHeight + 2) + "px";
+}
+function growAll(root = document) { requestAnimationFrame(() => root.querySelectorAll("#editor textarea").forEach(grow)); }
+document.querySelectorAll("details.sec").forEach(d => d.addEventListener("toggle", () => growAll(d)));
+window.addEventListener("resize", () => growAll());
+
+// Colores principales de una imagen (ignora transparencias y blancos)
+function logoColors(src) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const s = 64, c = document.createElement("canvas"); c.width = c.height = s;
+      const g = c.getContext("2d"); g.drawImage(img, 0, 0, s, s);
+      let d; try { d = g.getImageData(0, 0, s, s).data; } catch { return res([]); }
+      const B = new Map();
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 200) continue;
+        const r = d[i], gg = d[i + 1], b = d[i + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+        if (mn > 228) continue;
+        const k = (r >> 4) << 8 | (gg >> 4) << 4 | (b >> 4);
+        const e = B.get(k) || { n: 0, r: 0, g: 0, b: 0, sat: (mx - mn) / 255 };
+        e.n++; e.r += r; e.g += gg; e.b += b; B.set(k, e);
+      }
+      const arr = [...B.values()].map(e => ({ r: e.r / e.n, g: e.g / e.n, b: e.b / e.n, score: e.n * (0.35 + e.sat) })).sort((a, b) => b.score - a.score);
+      const out = [];
+      for (const q of arr) {
+        if (out.every(o => Math.hypot(o.r - q.r, o.g - q.g, o.b - q.b) > 70)) out.push(q);
+        if (out.length === 5) break;
+      }
+      res(out.map(q => "#" + [q.r, q.g, q.b].map(v => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase()));
+    };
+    img.onerror = () => res([]);
+    img.src = src;
+  });
+}
+
+$("editor").addEventListener("input", ev => {
+  const el = ev.target;
+  grow(el);
+  if (el.dataset.k) {
+    if (el.type === "radio" && !el.checked) return;
+    // Las notas de la reunión no convierten la propuesta de ejemplo en una propuesta guardada
+    if (state.ejemplo && (el.dataset.k === "notas" || el.dataset.k === "iaResp")) { setK(state, el.dataset.k, el.value); return; }
+    setK(state, el.dataset.k, el.type === "checkbox" ? el.checked : el.value);
+    if (el.dataset.k === "cliente" || el.dataset.k === "titulo") renderPickerLabelSoon();
+    if (/^(tpl\.portada|ante\.layout|pasos\.layout)$/.test(el.dataset.k)) renderSlots();
+    markEdited();
+  } else if (el.dataset.lk) {
+    const owner = el.dataset.owner;
+    const pt = owner === "otros" ? null : state.partes.find(x => x.id === owner);
+    const list = owner === "otros" ? state.inv.otros : pt && pt.lineas;
+    const l = list && list.find(x => x.id === el.dataset.lid); if (!l) return;
+    l[el.dataset.lk] = el.value;
+    const t = $("lt-" + l.id); if (t) t.textContent = lineTotalLabel(l);
+    updateParteHead(pt);
+    markEdited();
+  } else if (el.dataset.xk) {
+    const pt = state.partes.find(x => x.id === el.dataset.pid);
+    const x = pt && pt.extras.find(e => e.id === el.dataset.xid); if (!x) return;
+    x[el.dataset.xk] = el.value;
+    if (el.dataset.xk === "etiqueta" || el.dataset.xk === "titulo") { const h = $("xh-" + x.id); if (h) h.textContent = extraLabel(x); }
+    if (el.dataset.xk === "layout") { if (el.value !== "lista" && !x.img) x.img = { mode: "deco" }; renderPartes(); }
+    markEdited();
+  } else if (el.dataset.pk) {
+    const pt = state.partes.find(x => x.id === el.dataset.pid);
+    if (!pt) return;
+    pt[el.dataset.pk] = el.value;
+    if (el.dataset.pk === "nombre" || el.dataset.pk === "valor") updateParteHead(pt);
+    if (el.dataset.pk === "layout") { if (el.value !== "lista" && !pt.img) pt.img = { mode: "vacio" }; renderPartes(); }
+    markEdited();
+  }
+});
+$("editor").addEventListener("submit", e => e.preventDefault());
+
+function renderSwatches() {
+  const box = $("swatches"); box.textContent = "";
+  const cur = (state.color || "").toUpperCase();
+  const setColor = c => { state.color = c.toUpperCase(); renderSwatches(); markEdited(); };
+  const grp = t => { const s = document.createElement("span"); s.className = "grp"; s.textContent = t; box.appendChild(s); };
+  const sw = (c, name) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "swatch";
+    b.style.background = c; b.title = name + " " + c; b.setAttribute("aria-label", name + " " + c);
+    b.setAttribute("aria-pressed", String(cur === c.toUpperCase()));
+    b.addEventListener("click", () => setColor(c));
+    box.appendChild(b);
+  };
+  const lc = state.logo && state.logo.colors;
+  if (lc && lc.length) { grp("Colores del logo"); lc.forEach(c => sw(c, "Color del logo")); }
+  grp("Otros colores");
+  PRESETS.forEach(([c, name]) => sw(c, name));
+  const lab = document.createElement("label"); lab.className = "sr"; lab.htmlFor = "f-color"; lab.textContent = "Elegir cualquier color";
+  const inp = document.createElement("input"); inp.type = "color"; inp.id = "f-color"; inp.value = (state.color || "#FF5A00").toLowerCase(); inp.title = "Elegir cualquier color";
+  const hl = document.createElement("label"); hl.className = "sr"; hl.htmlFor = "f-color-hex"; hl.textContent = "Código de color";
+  const hx = document.createElement("input"); hx.type = "text"; hx.id = "f-color-hex"; hx.className = "hex"; hx.value = state.color || "#FF5A00"; hx.maxLength = 7; hx.spellcheck = false;
+  inp.addEventListener("input", e => { e.stopPropagation(); state.color = inp.value.toUpperCase(); hx.value = state.color; markEdited(); box.querySelectorAll(".swatch").forEach(s => s.setAttribute("aria-pressed", "false")); });
+  hx.addEventListener("input", e => {
+    e.stopPropagation();
+    const v = hx.value.trim().replace(/^#?/, "#");
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) { state.color = v.toUpperCase(); inp.value = v.toLowerCase(); markEdited(); box.querySelectorAll(".swatch").forEach(s => s.setAttribute("aria-pressed", "false")); }
+  });
+  box.append(lab, inp, hl, hx);
+}
+
+function renderLogo() {
+  const t = $("logoThumb");
+  t.hidden = !state.logo; $("btnLogoDel").hidden = !state.logo;
+  if (state.logo) t.src = state.logo.data;
+  $("f-logo").value = "";
+}
+$("f-logo").addEventListener("change", ev => {
+  ev.stopPropagation();
+  const f = ev.target.files && ev.target.files[0]; if (f) loadLogo(f);
+});
+function loadLogo(f) {
+  const r = new FileReader();
+  r.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 480, w0 = img.naturalWidth || 400, h0 = img.naturalHeight || 200;
+      const s = Math.min(1, max / Math.max(w0, h0)), w = Math.max(1, Math.round(w0 * s)), h = Math.max(1, Math.round(h0 * s));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      const lg = { data: c.toDataURL("image/png"), w, h };
+      state.logo = lg;
+      renderLogo(); markEdited();
+      logoColors(lg.data).then(cols => {
+        if (state.logo !== lg) return;
+        lg.colors = cols;
+        if (cols.length) state.color = cols[0]; // aplica el color principal del logo
+        renderSwatches(); markEdited();
+      });
+    };
+    img.onerror = () => setStatus("No se pudo leer esa imagen. Prueba con PNG o JPG.", true);
+    img.src = r.result;
+  };
+  r.readAsDataURL(f);
+}
+$("btnLogoDel").addEventListener("click", () => { state.logo = null; renderLogo(); markEdited(); });
+
+// Editor de un espacio de imagen: decoración de Grupo Macro, espacio vacío (con prompt para Gemini) o imagen subida.
+// holder[key] guarda el espacio: {mode, id, w, h, prompt}
+function slotUI(title, holder, key, o = {}) {
+  const get = () => holder[key];
+  const set = s => { holder[key] = s; (o.rerender || renderSlots)(); markEdited(); };
+  const box = document.createElement("div"); box.className = "slot";
+  const t = document.createElement("div"); t.className = "slot-t"; t.textContent = title;
+  const seg = document.createElement("div"); seg.className = "seg";
+  const cur = get() || { mode: o.deco ? "deco" : "vacio" };
+  const file = document.createElement("input"); file.type = "file"; file.accept = "image/png,image/jpeg,image/webp"; file.hidden = true;
+  const btn = (mode, text) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = text;
+    b.setAttribute("aria-pressed", String(cur.mode === mode));
+    b.addEventListener("click", () => {
+      if (mode === "img") { if (cur.id) set(Object.assign({}, cur, { mode: "img" })); else file.click(); return; }
+      set(Object.assign({}, cur, { mode }));
+    });
+    seg.appendChild(b);
+  };
+  if (o.deco) btn("deco", o.decoLabel || "Gráfico de Grupo Macro");
+  btn("vacio", "Espacio vacío");
+  btn("img", "Subir imagen");
+  const row = document.createElement("div"); row.className = "slot-row";
+  const hint = document.createElement("small");
+  if (cur.mode === "img" && cur.id) {
+    const th = document.createElement("img"); th.className = "thumb"; th.alt = "Imagen elegida"; th.dataset.imgId = cur.id;
+    const im = imgGet(cur.id); if (im) th.src = im.src;
+    const ch = document.createElement("button"); ch.type = "button"; ch.className = "ghost"; ch.textContent = "Cambiar imagen";
+    ch.addEventListener("click", () => file.click());
+    row.append(th, ch);
+  } else {
+    hint.textContent = cur.mode === "deco" ? "Usa un recurso gráfico de Grupo Macro." : "En el PowerPoint queda un espacio para insertar la imagen con un clic.";
+    row.append(hint);
+  }
+  const accept = async f => {
+    try { set(Object.assign({}, get() || {}, await storeImage(f))); }
+    catch (err) {
+      setStatus(err && err.message === "muy_grande" ? "La imagen es demasiado grande. Prueba con una más liviana."
+        : err && err.message ? "No se pudo subir la imagen: " + err.message
+        : "No se pudo subir la imagen. Vuelve a intentar.", true);
+    }
+  };
+  file.addEventListener("change", e => {
+    e.stopPropagation();
+    const f = file.files && file.files[0]; file.value = ""; if (f) accept(f);
+  });
+  file.addEventListener("input", e => e.stopPropagation());
+  const dh = document.createElement("div"); dh.className = "drop-hint";
+  dh.textContent = "Arrastra una imagen aquí, o haz clic en este recuadro y pégala con Ctrl+V (en Gemini: clic derecho → Copiar imagen).";
+  box.append(t, seg, row, dh, file);
+  bindDrop(box, o.id || title, accept);
+  if (cur.mode !== "deco") box.appendChild(promptUI(holder, key, Object.assign({}, o, { set })));
+  return box;
+}
+// Genera una imagen con Gemini (en el servidor) y la guarda como imagen de la propuesta
+async function generarImagen(prompt, ar) {
+  const r = await api("/api/ia", { method: "POST", body: JSON.stringify({ modo: "imagen", prompt: fullPrompt(prompt, ar), ar }) });
+  const blob = await (await fetch(r.data)).blob();
+  return storeImage(blob);
+}
+function aiMsg(e) { return (e && e.message) || AI_MSG[e && e.code]; }
+// Arrastrar o pegar imágenes: el espacio activo (el último en que se hizo clic) recibe lo que se pegue con Ctrl+V
+const dropTargets = new Map();   // id del espacio → función que recibe el archivo
+let activeSlotId = null;
+function bindDrop(box, sid, accept) {
+  box.tabIndex = 0; box.dataset.sid = sid;
+  dropTargets.set(sid, accept);
+  if (sid === activeSlotId) box.classList.add("active");
+  const activate = () => {
+    activeSlotId = sid;
+    document.querySelectorAll(".slot.active, .logo-row.active").forEach(b => { if (b !== box) b.classList.remove("active"); });
+    box.classList.add("active");
+  };
+  box.addEventListener("pointerdown", activate);
+  box.addEventListener("focusin", activate);
+  box.addEventListener("dragover", e => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); box.classList.add("drag"); } });
+  box.addEventListener("dragleave", e => { if (!box.contains(e.relatedTarget)) box.classList.remove("drag"); });
+  box.addEventListener("drop", e => {
+    e.preventDefault(); box.classList.remove("drag"); activate();
+    const f = [...(e.dataTransfer?.files || [])].find(x => /^image\//.test(x.type));
+    if (f) accept(f); else setStatus("Suelta un archivo de imagen (PNG, JPG o WebP).", true);
+  });
+}
+document.addEventListener("paste", e => {
+  const it = [...(e.clipboardData?.items || [])].find(i => i.kind === "file" && /^image\//.test(i.type));
+  if (!it) return;
+  const accept = activeSlotId && document.querySelector('[data-sid="' + CSS.escape(activeSlotId) + '"]') ? dropTargets.get(activeSlotId) : null;
+  if (!accept) { setStatus("Haz clic primero en el espacio de imagen (o en el logo) donde quieres pegarla.", true); return; }
+  e.preventDefault();
+  accept(it.getAsFile());
+});
+// Evita que soltar una imagen fuera de un espacio abra la imagen en el navegador
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("drop", e => e.preventDefault());
+
+// Prompt para Gemini de un espacio de imagen: editar, sugerir con IA, copiar y abrir Gemini
+function promptUI(holder, key, o) {
+  const ar = o.ar || "1:1", id = (o.id || "slot") + "-prompt";
+  const wrap = document.createElement("div"); wrap.className = "slot-prompt";
+  const l = document.createElement("label"); l.htmlFor = id; l.className = "lbl-inline"; l.textContent = "Prompt para Gemini (formato " + ar + ")";
+  const ta = document.createElement("textarea"); ta.id = id; ta.rows = 3;
+  ta.placeholder = "Describe la escena: quiénes aparecen, qué hacen y dónde. El estilo fotográfico se agrega solo.";
+  ta.value = (holder[key] && holder[key].prompt) || "";
+  ta.addEventListener("input", e => {
+    e.stopPropagation(); grow(ta);
+    if (!holder[key]) holder[key] = { mode: o.deco ? "deco" : "vacio" };
+    holder[key].prompt = ta.value; markEdited();
+  });
+  const btns = document.createElement("div"); btns.className = "row-btns";
+  const sug = document.createElement("button"); sug.type = "button"; sug.className = "ai-btn ai-inline"; sug.textContent = ta.value.trim() ? "✦ Mejorar prompt" : "✦ Sugerir prompt";
+  const cp = document.createElement("button"); cp.type = "button"; cp.textContent = "Copiar prompt";
+  cp.addEventListener("click", () => {
+    if (!ta.value.trim()) { setStatus("Escribe o sugiere un prompt primero."); return; }
+    copyText(fullPrompt(ta.value, ar), cp);
+  });
+  const tieneImg = holder[key] && holder[key].mode === "img";
+  const gen = document.createElement("button"); gen.type = "button"; gen.className = "primary";
+  gen.textContent = tieneImg ? "✦ Generar otra con Gemini" : "✦ Generar con Gemini";
+  gen.addEventListener("click", async () => {
+    if (!ta.value.trim()) { setStatus("Escribe o sugiere un prompt primero.", true); return; }
+    gen.disabled = true; gen.textContent = "Generando imagen…";
+    setStatus("Gemini está generando la imagen…");
+    try {
+      const s = await generarImagen(ta.value, ar);
+      o.set(Object.assign({}, holder[key] || {}, s, { prompt: ta.value }));
+      setStatus("Imagen generada");
+    } catch (e) {
+      if (!(e && e.code === "sesion")) setStatus(aiMsg(e) || "No se pudo generar la imagen. Vuelve a intentar.", true);
+      gen.disabled = false; gen.textContent = "✦ Generar con Gemini";
+    }
+  });
+  sug.addEventListener("click", async () => {
+    if (!sampleFn) return;
+    sug.disabled = true; const prev = sug.textContent; sug.textContent = "Escribiendo…";
+    try {
+      const r = await sampleFn(promptPedido(ta.value, o.ctx ? o.ctx() : (o.label || "imagen de la propuesta"), ar), { modelTier: "default", cache: false, onText: ({ text }) => { ta.value = text; grow(ta); } });
+      ta.value = String(r.text || "").trim().replace(/^["“]|["”]$/g, "");
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    } catch (e) {
+      if (e && e.code !== "cancelled") setStatus(aiMsg(e) || "No se pudo sugerir el prompt. Vuelve a intentar.", true);
+    } finally { sug.disabled = false; sug.textContent = ta.value.trim() ? "✦ Mejorar prompt" : prev; }
+  });
+  btns.append(gen, sug, cp);
+  const h = document.createElement("small"); h.textContent = "Gemini genera la imagen y la coloca en la lámina. También puedes arrastrar o pegar otra imagen. Si queda vacía, el prompt va dentro del espacio y en las notas del PowerPoint.";
+  wrap.append(l, ta, btns, h);
+  return wrap;
+}
+async function copyText(text, btn) {
+  const done = msg => { const p = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = p; }, 1600); };
+  try { await navigator.clipboard.writeText(text); done("Copiado"); }
+  catch {
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch {}
+    ta.remove(); done(ok ? "Copiado" : "No se pudo copiar");
+  }
+}
+function promptPedido(actual, contexto, ar) {
+  const p = state;
+  return [
+    "Escribe un prompt en español para generar con Gemini una fotografía para una propuesta comercial de Grupo Macro (consultora de transformación cultural).",
+    "",
+    "Reglas de la skill de propuestas de Grupo Macro:",
+    "1. Empieza con el perfil visual del público, igual en todas las imágenes: cantidad de personas (máximo 6), edad, nacionalidad, vestimenta real de trabajo, peinado.",
+    "2. Describe la acción concreta (qué hace cada persona, qué objetos aparecen).",
+    "3. Describe el lugar real del evento o el lugar de trabajo del público.",
+    "4. Indica la composición (" + (ar === "16:9" ? "plano general horizontal" : "composición centrada para recorte cuadrado o circular") + ").",
+    "Nunca pidas personajes protegidos, marcas, logotipos ni texto en la imagen (por ejemplo, LEGO → bloques de construcción de plástico). No agregues el bloque de estilo fotográfico: se agrega aparte.",
+    "",
+    "Cliente: " + (p.cliente || "(sin definir)") + ". Propuesta: " + (p.titulo || "(sin definir)") + ".",
+    "Perfil visual del público: " + (p.perfilVisual || "(no definido: dedúcelo del contexto)"),
+    "Lámina e imagen: " + contexto,
+    actual.trim() ? "\nPrompt actual para mejorar:\n" + actual.trim() : "",
+    "",
+    "Responde solo con el prompt, en un párrafo de 2 a 4 oraciones, sin comillas ni explicaciones.",
+  ].join("\n");
+}
+function renderSlots() {
+  const ps = $("portadaSlot"); ps.textContent = "";
+  if (state.tpl.portada === "ciudad") {
+    const box = document.createElement("div"); box.className = "slot";
+    const t = document.createElement("div"); t.className = "slot-t"; t.textContent = "Logo del cliente sobre la foto";
+    const seg = document.createElement("div"); seg.className = "seg";
+    [["ninguno", "Sin fondo"], ["blanco", "Con recuadro blanco"]].forEach(([v, txt]) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = txt;
+      b.setAttribute("aria-pressed", String((state.tpl.logoFondo || "ninguno") === v));
+      b.addEventListener("click", () => { state.tpl.logoFondo = v; renderSlots(); markEdited(); });
+      seg.appendChild(b);
+    });
+    const h = document.createElement("small"); h.textContent = "Usa el recuadro si el logo no tiene fondo transparente o se pierde sobre la foto oscura.";
+    box.append(t, seg, h); ps.appendChild(box);
+  }
+  if (state.tpl.portada === "foto") ps.appendChild(slotUI("Foto de la portada", state, "portadaImg", { id: "slot-portada", ar: "16:9",
+    ctx: () => "Foto horizontal de portada que represente al cliente y al tema: " + (state.titulo || "") }));
+  const as = $("anteSlot"); as.textContent = "";
+  if (state.ante.layout === "imagen") as.appendChild(slotUI("Imagen junto al texto", state.ante, "img", { id: "slot-ante", deco: true, decoLabel: "Círculo de color Grupo Macro",
+    ctx: () => "Imagen circular de la lámina de objetivo, en el lugar de trabajo del público. Objetivo: " + (state.ante.texto || "") }));
+  const qs = $("pasosSlot"); qs.textContent = "";
+  if (state.pasos.layout === "lista") qs.appendChild(slotUI("Imagen junto a la lista", state.pasos, "img", { id: "slot-pasos", deco: true, decoLabel: "Ícono grande",
+    ctx: () => "Imagen que acompaña la lista de pasos del proyecto: " + state.partes.map(x => x.nombre).join(", ") }));
+  growAll($("portadaSlot")); growAll($("anteSlot")); growAll($("pasosSlot"));
+}
+
+function field(pt, k, label, type, extra = {}) {
+  const wrap = document.createElement("div"); wrap.className = "field";
+  const id = "parte-" + pt.id + "-" + k;
+  const l = document.createElement("label"); l.htmlFor = id; l.textContent = label;
+  let el;
+  if (type === "textarea") { el = document.createElement("textarea"); el.rows = extra.rows || 3; }
+  else if (type === "select") { el = document.createElement("select"); extra.options.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; el.appendChild(o); }); }
+  else { el = document.createElement("input"); el.type = type; if (type === "number") { el.min = "0"; el.step = "any"; } }
+  el.id = id; el.dataset.pid = pt.id; el.dataset.pk = k; el.value = pt[k] ?? "";
+  if (extra.ph) el.placeholder = extra.ph;
+  wrap.append(l, el);
+  if (extra.help) { const s = document.createElement("small"); s.textContent = extra.help; wrap.appendChild(s); }
+  if (extra.ai) { el.dataset.ai = extra.ai; attachAI(el); }
+  return wrap;
+}
+function group(title, ...children) {
+  const g = document.createElement("div"); g.className = "group";
+  const t = document.createElement("div"); t.className = "group-t"; t.textContent = title;
+  g.append(t, ...children); return g;
+}
+function iconPicker(pt) {
+  const d = document.createElement("details"); d.className = "icon-pick";
+  const s = document.createElement("summary");
+  const im = document.createElement("img"); im.alt = ""; im.src = (GA.icons[pt.icono] || {}).color || "";
+  const tx = document.createElement("span"); tx.textContent = "Ícono: " + ((GA.icons[pt.icono] || {}).label || "");
+  const ch = document.createElement("span"); ch.className = "chg"; ch.textContent = "Cambiar";
+  s.append(im, tx, ch);
+  const grid = document.createElement("div"); grid.className = "icon-grid";
+  ICON_KEYS.forEach(k => {
+    const b = document.createElement("button"); b.type = "button"; b.title = GA.icons[k].label; b.setAttribute("aria-label", GA.icons[k].label);
+    b.setAttribute("aria-pressed", String(k === pt.icono));
+    const i = document.createElement("img"); i.alt = ""; i.src = GA.icons[k].color; b.appendChild(i);
+    b.addEventListener("click", () => { pt.icono = k; renderPartes(); markEdited(); });
+    grid.appendChild(b);
+  });
+  d.append(s, grid);
+  return d;
+}
+function renderPartes() {
+  const box = $("partes"); box.textContent = "";
+  state.partes.forEach((pt, i) => {
+    const card = document.createElement("div"); card.className = "parte"; card.dataset.id = pt.id;
+    const head = document.createElement("div"); head.className = "parte-head";
+    const L = document.createElement("span"); L.className = "letter"; L.textContent = letter(i);
+    const ic = document.createElement("img"); ic.className = "picon"; ic.alt = ""; ic.src = (GA.icons[pt.icono] || {}).color || "";
+    const nm = document.createElement("span"); nm.className = "pname";
+    const vv = document.createElement("span"); vv.className = "pval";
+    const tg = document.createElement("button"); tg.type = "button"; tg.className = "ghost icon"; tg.textContent = pt.open ? "Cerrar" : "Editar";
+    tg.setAttribute("aria-expanded", String(!!pt.open));
+    tg.addEventListener("click", () => { pt.open = !pt.open; renderPartes(); });
+    const up = document.createElement("button"); up.type = "button"; up.className = "ghost icon"; up.textContent = "↑"; up.setAttribute("aria-label", "Subir paso"); up.disabled = i === 0;
+    up.addEventListener("click", () => move(i, -1));
+    const dn = document.createElement("button"); dn.type = "button"; dn.className = "ghost icon"; dn.textContent = "↓"; dn.setAttribute("aria-label", "Bajar paso"); dn.disabled = i === state.partes.length - 1;
+    dn.addEventListener("click", () => move(i, 1));
+    const rm = document.createElement("button"); rm.type = "button"; rm.className = "ghost icon danger"; rm.textContent = "Eliminar";
+    rm.setAttribute("aria-label", "Eliminar paso " + letter(i));
+    rm.addEventListener("click", () => removeParte(i));
+    head.append(L, ic, nm, vv, tg, up, dn, rm);
+    card.appendChild(head);
+    if (pt.open) {
+      const body = document.createElement("div"); body.className = "parte-body";
+      const design = group("Diseño de su lámina",
+        iconPicker(pt),
+        field(pt, "layout", "Distribución", "select", { options: [["lista", "Texto + lista “¿Qué incluye?”"], ["imagenDer", "Texto + imagen a la derecha"], ["imagenIzq", "Imagen a la izquierda + texto"]] }));
+      if (pt.layout !== "lista") design.appendChild(slotUI("Imagen de esta parte", pt, "img", { id: "slot-" + pt.id, deco: true, decoLabel: "Ícono grande", rerender: renderPartes,
+        ctx: () => "Imagen del paso " + (pt.nombre || "") + ". " + (pt.descripcion || pt.resumen || "") }));
+      body.append(
+        group("El paso",
+          field(pt, "nombre", "Nombre del paso", "text", { ph: "Ej. Diagnóstico" }),
+          field(pt, "resumen", "Resumen para la lámina de pasos", "textarea", { rows: 2, ph: "Una o dos líneas.", ai: "resumen" })),
+        design,
+        group("Qué compone esta parte",
+          field(pt, "duracion", "Modalidad o duración (opcional)", "text", { ph: "Ej. Taller presencial · 8 horas" }),
+          field(pt, "descripcion", "Descripción", "textarea", { rows: 4, ph: "Qué haremos y para qué.", ai: "descripcion" }),
+          field(pt, "componentes", "Componentes", "textarea", { rows: 4, ph: "Un componente por línea", help: "Un componente por línea. Se muestran como lista en “¿Qué incluye?”.", ai: "componentes" })),
+        extrasGroup(pt),
+        valorGroup(pt),
+      );
+      const foot = document.createElement("div"); foot.className = "parte-foot";
+      const del = document.createElement("button"); del.type = "button"; del.className = "danger"; del.textContent = "Eliminar este paso";
+      del.addEventListener("click", () => removeParte(i));
+      foot.appendChild(del); body.appendChild(foot);
+      card.appendChild(body);
+    }
+    box.appendChild(card);
+    updateParteHead(pt);
+  });
+  const n = state.partes.length, nx = state.partes.reduce((s, q) => s + q.extras.length, 0);
+  $("partesHint").textContent = n + (n === 1 ? " paso" : " pasos") + " · " + (n + 1 + nx) + " láminas";
+  growAll(box);
+}
+
+// Láminas adicionales de un paso
+function xfield(pt, x, k, label, type, extra = {}) {
+  const wrap = document.createElement("div"); wrap.className = "field";
+  const id = "x-" + x.id + "-" + k;
+  const l = document.createElement("label"); l.htmlFor = id; l.textContent = label;
+  let el;
+  if (type === "textarea") { el = document.createElement("textarea"); el.rows = extra.rows || 3; }
+  else if (type === "select") { el = document.createElement("select"); extra.options.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; el.appendChild(o); }); }
+  else { el = document.createElement("input"); el.type = type; }
+  el.id = id; el.dataset.pid = pt.id; el.dataset.xid = x.id; el.dataset.xk = k; el.value = x[k] ?? "";
+  if (extra.ph) el.placeholder = extra.ph;
+  wrap.append(l, el);
+  if (extra.help) { const s = document.createElement("small"); s.textContent = extra.help; wrap.appendChild(s); }
+  if (extra.ai) { el.dataset.ai = extra.ai; attachAI(el); }
+  return wrap;
+}
+const extraLabel = x => [x.etiqueta, x.titulo].map(s => (s || "").trim()).filter(Boolean).join(" · ") || "Lámina sin título";
+function extrasGroup(pt) {
+  const help = document.createElement("small");
+  help.textContent = "Para módulos, actividades, habilidades o sesiones. Cada una genera su propia lámina después de la lámina de este paso.";
+  const list = document.createElement("div"); list.className = "extras";
+  pt.extras.forEach((x, j) => {
+    const card = document.createElement("div"); card.className = "extra";
+    const head = document.createElement("div"); head.className = "extra-head";
+    const im = document.createElement("img"); im.alt = ""; im.src = (GA.icons[x.icono] || {}).color || "";
+    const nm = document.createElement("span"); nm.className = "xname"; nm.id = "xh-" + x.id; nm.textContent = extraLabel(x);
+    const mk = (txt, lab, fn, dis, cls) => { const b = document.createElement("button"); b.type = "button"; b.className = "ghost icon" + (cls ? " " + cls : ""); b.textContent = txt; b.setAttribute("aria-label", lab); b.disabled = !!dis; b.addEventListener("click", fn); return b; };
+    head.append(im, nm,
+      mk(x.open ? "Cerrar" : "Editar", (x.open ? "Cerrar " : "Editar ") + extraLabel(x), () => { x.open = !x.open; renderPartes(); }),
+      mk("↑", "Subir lámina", () => { [pt.extras[j - 1], pt.extras[j]] = [pt.extras[j], pt.extras[j - 1]]; renderPartes(); markEdited(); }, j === 0),
+      mk("↓", "Bajar lámina", () => { [pt.extras[j + 1], pt.extras[j]] = [pt.extras[j], pt.extras[j + 1]]; renderPartes(); markEdited(); }, j === pt.extras.length - 1),
+      mk("Eliminar", "Eliminar " + extraLabel(x), () => { pt.extras.splice(j, 1); renderPartes(); markEdited(); setStatus("Lámina eliminada"); }, false, "danger"));
+    card.appendChild(head);
+    if (x.open) {
+      const body = document.createElement("div"); body.className = "extra-body";
+      body.append(
+        xfield(pt, x, "etiqueta", "Etiqueta (opcional)", "text", { ph: "Ej. Módulo 1, Actividad 2, Sesión 3" }),
+        xfield(pt, x, "titulo", "Título", "text", { ph: "Ej. Liderazgo situacional" }),
+        xfield(pt, x, "hora", "Horario o duración (opcional)", "text", { ph: "Ej. 08H00 – 08H45 o Semana 3" }),
+        xfield(pt, x, "objetivo", "Objetivo", "textarea", { rows: 2, ph: "Qué desarrollará o logrará el participante.", ai: "xobjetivo" }),
+        xfield(pt, x, "contenido", "Contenido", "textarea", { rows: 4, ph: "Un tema por línea", help: "Un tema por línea.", ai: "xcontenido" }),
+        xfield(pt, x, "frase", "Frase ancla (opcional)", "text", { ph: "Ej. Mindset correcto (máximo 45 caracteres)" }),
+        iconPicker(x),
+        xfield(pt, x, "layout", "Distribución", "select", { options: [["imagenIzq", "Imagen a la izquierda + texto"], ["imagenDer", "Texto + imagen a la derecha"], ["lista", "Ícono + texto"]] }));
+      if (x.layout !== "lista") body.appendChild(slotUI("Imagen de esta lámina", x, "img", { id: "slot-" + x.id, deco: true, decoLabel: "Ícono grande", rerender: renderPartes,
+        ctx: () => "Imagen de la actividad o módulo " + extraLabel(x) + " del paso " + (pt.nombre || "") + ". " + (x.objetivo || "") + " " + (x.contenido || "").replace(/\n/g, "; ") }));
+      card.appendChild(body);
+    }
+    list.appendChild(card);
+  });
+  const add = document.createElement("button"); add.type = "button"; add.className = "add-line"; add.textContent = "+ Agregar lámina (módulo, actividad, habilidad…)";
+  add.addEventListener("click", () => {
+    pt.extras.forEach(e => e.open = false);
+    const x = nuevoExtra({ etiqueta: "Módulo " + (pt.extras.length + 1) }, pt.extras.length);
+    pt.extras.push(x); renderPartes(); markEdited();
+    const el = $("x-" + x.id + "-titulo"); if (el) el.focus();
+  });
+  return group("Láminas adicionales de este paso", help, list, add);
+}
+let undoDel = null, undoTimer = 0;
+function removeParte(i) {
+  const [pt] = state.partes.splice(i, 1);
+  if (!state.partes.length) state.partes.push(nuevaParte());
+  undoDel = { pt, i, propId: state.id };
+  renderPartes(); markEdited();
+  setStatus("Paso eliminado");
+  $("btnUndo").hidden = false;
+  clearTimeout(undoTimer); undoTimer = setTimeout(() => { $("btnUndo").hidden = true; undoDel = null; }, 12000);
+}
+$("btnUndo").addEventListener("click", () => {
+  $("btnUndo").hidden = true; clearTimeout(undoTimer);
+  if (!undoDel || undoDel.propId !== state.id) return;
+  const only = state.partes.length === 1 && !state.partes[0].nombre && !state.partes[0].descripcion;
+  if (only) state.partes = [];
+  state.partes.splice(Math.min(undoDel.i, state.partes.length), 0, undoDel.pt);
+  undoDel = null; renderPartes(); markEdited();
+});
+function updateParteHead(pt) {
+  if (!pt) return;
+  const card = document.querySelector('.parte[data-id="' + pt.id + '"]'); if (!card) return;
+  card.querySelector(".pname").textContent = pt.nombre || "Sin nombre";
+  card.querySelector(".pval").textContent = parteHas(pt) ? money(parteTotal(pt)) : "Incluido";
+  const v = $("parte-" + pt.id + "-valor");
+  if (v && pt.lineas.length) v.placeholder = "= " + money(parteTotal(pt)) + " (suma del desglose)";
+}
+
+// Valor de un paso: un valor único o un desglose en líneas (grupos, módulos, personas…)
+function valorGroup(pt) {
+  const vf = field(pt, "valor", "Valor (USD)", "number", { ph: "Vacío = Incluido" });
+  const vi = vf.querySelector("input");
+  if (pt.lineas.length) { vi.disabled = true; vi.value = ""; vi.placeholder = "= " + money(parteTotal(pt)) + " (suma del desglose)"; }
+  const help = document.createElement("small");
+  help.textContent = pt.lineas.length
+    ? "El valor del paso es la suma del desglose."
+    : "Para desglosar por grupos, módulos, personas o sesiones, agrega líneas.";
+  const add = document.createElement("button"); add.type = "button"; add.className = "add-line"; add.textContent = "+ Agregar línea de desglose";
+  add.addEventListener("click", () => addLine(pt.lineas, pt.id));
+  return group("Valor económico", vf, help, linesEditor(pt.lineas, pt.id), add,
+    field(pt, "detalleValor", "Detalle en la lámina de costos (opcional)", "text", { ph: "Ej. Diagnóstico · Salida de campo · Taller 8 h" }));
+}
+const lineTotalLabel = l => "= " + (hasNum(l.precio) ? money(lineTotal(l)) : "Incluido");
+function linesEditor(list, owner) {
+  const wrap = document.createElement("div"); wrap.className = "lines";
+  list.forEach((l, k) => {
+    const row = document.createElement("div"); row.className = "line";
+    const mk = (lk, type, ph, lab) => {
+      const id = "ln-" + l.id + "-" + lk;
+      const lb = document.createElement("label"); lb.className = "sr"; lb.htmlFor = id; lb.textContent = lab;
+      const i = document.createElement("input"); i.type = type; i.id = id; i.placeholder = ph; i.value = l[lk] ?? "";
+      i.dataset.lid = l.id; i.dataset.lk = lk; i.dataset.owner = owner;
+      if (type === "number") { i.min = "0"; i.step = "any"; }
+      return [lb, i];
+    };
+    const top = document.createElement("div"); top.className = "line-top";
+    top.append(...mk("concepto", "text", "Concepto (ej. Grupo 1, Módulo 2, Licencias)", "Concepto"));
+    const del = document.createElement("button"); del.type = "button"; del.className = "ghost icon danger"; del.textContent = "✕";
+    del.setAttribute("aria-label", "Eliminar línea"); del.title = "Eliminar línea";
+    del.addEventListener("click", () => { list.splice(k, 1); rerenderLines(owner); markEdited(); });
+    top.appendChild(del);
+    const nums = document.createElement("div"); nums.className = "line-nums";
+    const tot = document.createElement("span"); tot.className = "line-total"; tot.id = "lt-" + l.id; tot.textContent = lineTotalLabel(l);
+    nums.append(...mk("cantidad", "number", "Cant.", "Cantidad"), ...mk("unidad", "text", "unidad (grupos, horas…)", "Unidad"), ...mk("precio", "number", "Precio unit.", "Precio unitario (USD)"), tot);
+    row.append(top, nums);
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+function rerenderLines(owner) { if (owner === "otros") renderOtros(); else renderPartes(); renderTotals(); }
+function addLine(list, owner) {
+  const l = nuevaLinea(); list.push(l);
+  rerenderLines(owner); markEdited();
+  const el = $("ln-" + l.id + "-concepto"); if (el) el.focus();
+}
+function renderOtros() {
+  const box = $("otros"); box.textContent = "";
+  if (!Array.isArray(state.inv.otros)) state.inv.otros = [];
+  box.appendChild(linesEditor(state.inv.otros, "otros"));
+}
+$("btnAddOtro").addEventListener("click", () => addLine(state.inv.otros, "otros"));
+function move(i, d) {
+  const j = i + d; if (j < 0 || j >= state.partes.length) return;
+  const a = state.partes; [a[i], a[j]] = [a[j], a[i]];
+  renderPartes(); markEdited();
+}
+$("btnAddParte").addEventListener("click", () => {
+  state.partes.forEach(p => p.open = false);
+  const pt = nuevaParte({}, state.partes.length); state.partes.push(pt);
+  renderPartes(); markEdited();
+  const el = $("parte-" + pt.id + "-nombre"); if (el) el.focus();
+});
+function renderTotals() {
+  const desc = num(state.inv.descValor);
+  $("sumPartes").textContent = money(grandTotal(state) - desc) + (desc > 0 ? " (con descuento)" : "");
+}
+
+// ---------- Redacción con IA ----------
+let sampleFn = null;
+const AI_SPEC = {
+  objetivo: { campo: "texto de la lámina de antecedentes u objetivo", regla: p => `La lámina se titula "${p.ante.titulo}". Escribe de 2 a 4 oraciones, máximo 80 palabras: la situación del cliente, lo que busca y lo que vamos a lograr con Grupo Macro.` },
+  destacado: { campo: "frase destacada", regla: () => "Una sola frase corta y memorable, máximo 12 palabras, que resuma la promesa de la propuesta." },
+  intro: { campo: "introducción de la lámina de pasos", regla: () => "Una sola frase que presente los pasos del proyecto, máximo 20 palabras." },
+  resumen: { campo: "resumen del paso para su tarjeta en la lámina de pasos", regla: () => "Una o dos frases, máximo 22 palabras, que digan qué se logra en este paso." },
+  descripcion: { campo: "descripción de esta parte del proyecto", regla: () => "De 2 a 3 oraciones, máximo 70 palabras: qué haremos en esta parte y para qué le sirve al cliente." },
+  componentes: { campo: "lista de componentes de esta parte", regla: () => "Entre 3 y 6 componentes, uno por línea, sin viñetas, guiones ni numeración, máximo 9 palabras cada uno." },
+  xobjetivo: { campo: "objetivo de esta lámina (un módulo, actividad o habilidad del paso)", regla: () => "Una o dos oraciones, máximo 40 palabras, que digan qué desarrollará o logrará el participante." },
+  xcontenido: { campo: "contenido de esta lámina (un módulo, actividad o habilidad del paso)", regla: () => "Entre 3 y 6 temas, uno por línea, sin viñetas, guiones ni numeración, máximo 10 palabras cada uno." },
+};
+const AI_HIDE = ["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"];
+const AI_MSG = {
+  rate_limited: "Se alcanzó el límite de uso de IA por ahora. Intenta en unos minutos.",
+  session_expired: "Tu sesión expiró. Vuelve a iniciar sesión en claude.ai.",
+  refused: "La IA no pudo trabajar con este texto. Cambia el texto e intenta otra vez.",
+  empty_completion: "La IA no devolvió texto. Intenta otra vez.",
+  prompt_too_large: "El texto es demasiado largo para la IA. Acórtalo e intenta otra vez.",
+};
+
+function aiPrompt(kind, current, pt, xt) {
+  const p = state, s = AI_SPEC[kind];
+  const pasos = p.partes.map((x, i) => `${letter(i)}. ${x.nombre || "(sin nombre)"}${x.resumen ? " — " + x.resumen : ""}`).join("\n");
+  const ctx = [
+    `Cliente: ${p.cliente || "(sin definir)"}`,
+    `Nombre de la propuesta: ${p.titulo || "(sin definir)"}`,
+    `País: ${p.pais}`,
+    p.programa ? `Programa de Grupo Macro: ${p.programa}` : "",
+    kind !== "objetivo" && p.ante.texto ? `${p.ante.titulo}: ${p.ante.texto}` : "",
+    `Pasos del proyecto:\n${pasos}`,
+  ];
+  if (pt) {
+    ctx.push(`Paso en el que estamos trabajando: ${pt.nombre || "(sin nombre)"}`);
+    if (kind !== "resumen" && pt.resumen) ctx.push(`Resumen del paso: ${pt.resumen}`);
+    if (kind !== "descripcion" && pt.descripcion) ctx.push(`Descripción del paso: ${pt.descripcion}`);
+    if (kind !== "componentes" && pt.componentes) ctx.push(`Componentes del paso:\n${pt.componentes}`);
+    if (pt.duracion) ctx.push(`Modalidad: ${pt.duracion}`);
+  }
+  if (xt) {
+    ctx.push(`Lámina en la que estamos trabajando: ${extraLabel(xt)}`);
+    if (kind !== "xobjetivo" && xt.objetivo) ctx.push(`Objetivo de la lámina: ${xt.objetivo}`);
+    if (kind !== "xcontenido" && xt.contenido) ctx.push(`Contenido de la lámina:\n${xt.contenido}`);
+    const otros = pt.extras.filter(e => e !== xt).map(extraLabel);
+    if (otros.length) ctx.push(`Otras láminas del mismo paso (no repetir sus temas): ${otros.join("; ")}`);
+  }
+  const tarea = current.trim()
+    ? `Mejora la redacción del ${s.campo}. Conserva la idea y los datos del texto actual; hazlo más claro, persuasivo y orientado a resultados.`
+    : `Redacta una propuesta de ${s.campo} a partir del contexto.`;
+  return [
+    "Eres consultor comercial senior de Grupo Macro, consultora latinoamericana referente en Transformación Cultural (#TransformamosCultura). Para Grupo Macro, Cultura = Mindset + Rutinas. Sus programas: Cultura de Disciplina Comercial (resultado: incremento del ticket promedio), Cultura Centrada en el Cliente (incremento del NPS), Cultura de Accountability (incremento del EBITDA) y Cultura Corporativa (Empresa Nivel 5). Sus principios: lo que se mide, se mejora; lo divertido, impacta; lo práctico, funciona. Sus metodologías son gamificadas, vivenciales y medibles.",
+    "",
+    "Contexto de la propuesta comercial:",
+    ctx.filter(Boolean).join("\n"),
+    "",
+    "Tarea: " + tarea,
+    "Formato: " + s.regla(p),
+    "Reglas: español profesional, cercano y seguro; frases cortas y concretas; no inventes cifras, precios, fechas, clientes ni casos de éxito; si hace falta un dato que no está en el contexto escribe [PENDIENTE: dato]; no uses markdown, comillas, títulos ni explicaciones. Responde solo con el texto final del campo.",
+    current.trim() ? `\nTexto actual:\n"""\n${current.trim()}\n"""` : "",
+  ].join("\n");
+}
+function cleanAI(kind, t) {
+  t = String(t || "").trim().replace(/^"""|"""$/g, "").replace(/^["“]|["”]$/g, "").trim();
+  if (kind === "componentes" || kind === "xcontenido") t = t.split("\n").map(x => x.replace(/^\s*([-•*·]|\d+[.)])\s*/, "").trim()).filter(Boolean).join("\n");
+  return t;
+}
+function attachAI(ta) {
+  const kind = ta.dataset.ai; if (!AI_SPEC[kind]) return;
+  const bar = document.createElement("div"); bar.className = "ai-bar";
+  const btn = document.createElement("button"); btn.type = "button"; btn.className = "ai-btn";
+  const label = () => { btn.textContent = ta.value.trim() ? "✦ Mejorar con IA" : "✦ Sugerir con IA"; };
+  label(); ta.addEventListener("input", label); ta.addEventListener("ai-refresh", label);
+  bar.appendChild(btn);
+  const out = document.createElement("div"); out.className = "ai-out"; out.hidden = true;
+  const tag = document.createElement("div"); tag.className = "ai-tag"; tag.textContent = "Sugerencia de IA";
+  const txt = document.createElement("div"); txt.className = "ai-t";
+  const note = document.createElement("div"); note.className = "ai-note"; note.hidden = true;
+  const acts = document.createElement("div"); acts.className = "ai-acts";
+  const use = document.createElement("button"); use.type = "button"; use.className = "primary"; use.textContent = "Usar esta versión";
+  const again = document.createElement("button"); again.type = "button"; again.textContent = "Otra opción";
+  const close = document.createElement("button"); close.type = "button"; close.className = "ghost"; close.textContent = "Descartar";
+  acts.append(use, again, close);
+  out.append(tag, txt, note, acts);
+  ta.insertAdjacentElement("afterend", bar);
+  bar.insertAdjacentElement("afterend", out);
+  let ctl = null, result = "";
+  async function run() {
+    if (!sampleFn) return;
+    if (ctl) ctl.abort();
+    const my = ctl = new AbortController();
+    const pt = ta.dataset.pid ? state.partes.find(x => x.id === ta.dataset.pid) : null;
+    const xt = pt && ta.dataset.xid ? pt.extras.find(e => e.id === ta.dataset.xid) : null;
+    out.hidden = false; note.hidden = true; result = "";
+    txt.className = "ai-t wait"; txt.textContent = "Escribiendo…";
+    use.disabled = true; again.disabled = true; btn.disabled = true;
+    try {
+      const r = await sampleFn(aiPrompt(kind, ta.value, pt, xt), {
+        signal: my.signal, cache: false, modelTier: "default",
+        onText: ({ text }) => { txt.className = "ai-t"; txt.textContent = text; },
+      });
+      result = cleanAI(kind, r.text);
+      txt.className = "ai-t"; txt.textContent = result;
+      use.disabled = !result;
+    } catch (e) {
+      const code = e && e.code;
+      if (code === "cancelled") return;
+      if (AI_HIDE.includes(code)) { document.body.classList.remove("ai-on"); out.hidden = true; setStatus("La IA no está disponible en esta cuenta.", true); return; }
+      if (e && e.text && code === "upstream_error") { result = cleanAI(kind, e.text); txt.textContent = result; use.disabled = !result; }
+      else if (code === "refused") { txt.textContent = ""; }
+      note.textContent = aiMsg(e) || "Se cortó la conexión con la IA. Pulsa “Otra opción” para intentar de nuevo.";
+      note.hidden = false;
+    } finally {
+      if (ctl === my) { ctl = null; again.disabled = false; btn.disabled = false; }
+    }
+  }
+  btn.addEventListener("click", run);
+  again.addEventListener("click", run);
+  close.addEventListener("click", () => { if (ctl) ctl.abort(); out.hidden = true; });
+  use.addEventListener("click", () => {
+    if (!result) return;
+    ta.value = result;
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    out.hidden = true; ta.focus();
+  });
+}
+document.querySelectorAll("#editor textarea[data-ai]").forEach(attachAI);
+
+// ---------- Crear con IA desde la reunión (skill propuesta-gmacro) ----------
+const SK = window.GM_SKILL || null;
+const PROGRAMAS = ["Cultura de Disciplina Comercial", "Cultura Centrada en el Cliente", "Cultura de Accountability", "Cultura Corporativa"];
+const PAISES = ["Ecuador", "Perú", "Chile", "Bolivia", "Colombia", "República Dominicana", "El Salvador"];
+const ANTE_T = ["OBJETIVO", "OBJETIVO DEL TALLER", "ANTECEDENTES", "ANTECEDENTE Y OBJETIVO", "EL DESAFÍO", "NECESIDAD", "OBJETIVO DEL PROGRAMA"];
+function iaStatus(t, err) { const e = $("iaStatus"); e.textContent = t; e.classList.toggle("err", !!err); }
+
+$("ia-file").addEventListener("input", e => e.stopPropagation());
+$("ia-file").addEventListener("change", async ev => {
+  ev.stopPropagation();
+  const f = ev.target.files && ev.target.files[0]; if (!f) return;
+  try {
+    let text;
+    if (/\.docx$/i.test(f.name)) {
+      const z = await JSZip.loadAsync(await f.arrayBuffer());
+      const xml = await z.file("word/document.xml").async("string");
+      text = xml.replace(/<\/w:p>/g, "\n").replace(/<w:tab\/>/g, "\t").replace(/<w:br\/>/g, "\n").replace(/<[^>]+>/g, "")
+        .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+    } else text = await f.text();
+    if (/\.(vtt|srt)$/i.test(f.name)) text = text.replace(/^WEBVTT.*$/m, "").replace(/^\d+\s*$/gm, "").replace(/^[\d:.,]+\s*-->.*$/gm, "").replace(/\n{2,}/g, "\n");
+    text = text.trim();
+    if (!text) throw new Error("vacio");
+    const ta = $("ia-notas");
+    ta.value = (ta.value.trim() ? ta.value.trim() + "\n\n" : "") + text;
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    iaStatus("Archivo cargado: " + f.name + " (" + text.length.toLocaleString("es") + " caracteres).");
+  } catch { iaStatus("No se pudo leer ese archivo. Prueba con .txt o .docx, o pega el texto.", true); }
+  ev.target.value = "";
+});
+// Audio de la reunión: se sube directo al almacenamiento privado y Gemini lo transcribe en el servidor
+$("ia-audio").addEventListener("input", e => e.stopPropagation());
+$("ia-audio").addEventListener("change", async ev => {
+  ev.stopPropagation();
+  const f = ev.target.files && ev.target.files[0]; ev.target.value = "";
+  if (!f || !idToken) return;
+  if (f.size > 500 * 1024 * 1024) { iaStatus("El archivo pesa más de 500 MB. Comprímelo o córtalo e intenta de nuevo.", true); return; }
+  iaBusy(true);
+  try {
+    let mod;
+    try { mod = await import("https://esm.sh/@vercel/blob@2.8.1/client"); }
+    catch { mod = await import("https://cdn.jsdelivr.net/npm/@vercel/blob@2.8.1/dist/client.js/+esm"); }
+    const nombre = "audios/" + (f.name || "reunion").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
+    const b = await mod.upload(nombre, f, {
+      access: "private", handleUploadUrl: "/api/subir-audio", clientPayload: JSON.stringify({ token: idToken }),
+      multipart: f.size > 20 * 1024 * 1024,
+      onUploadProgress: p => iaStatus("Subiendo audio… " + Math.round(p.percentage) + "%"),
+    });
+    iaStatus("Gemini está transcribiendo la reunión… puede tardar unos minutos según la duración.");
+    const r = await api("/api/ia", { method: "POST", body: JSON.stringify({ modo: "transcribir", pathname: b.pathname }) });
+    const ta = $("ia-notas");
+    ta.value = (ta.value.trim() ? ta.value.trim() + "\n\n" : "") + "TRANSCRIPCIÓN (" + f.name + "):\n" + r.text;
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    iaStatus("Listo: la transcripción quedó en las notas. Revísala y pulsa “Analizar notas” o “Generar propuesta”. El audio no se guarda.");
+  } catch (e) {
+    if (!(e && e.code === "sesion")) iaStatus((e && e.message) ? "No se pudo transcribir: " + e.message : "No se pudo subir o transcribir el audio. Vuelve a intentar.", true);
+  } finally { iaBusy(false); }
+});
+
+function skillCtx(conProgramas) {
+  if (!SK) return "";
+  const parts = ["## Lenguaje y voz de marca\n" + SK.lenguaje, "## Índice de programas\n" + SK.indice, "## Catálogo de dinámicas\n" + SK.catalogo, "## Estructura y estilo de la propuesta\n" + SK.estructura];
+  if (conProgramas) Object.entries(SK.programas).forEach(([k, v]) => parts.push("## Programa: " + k + "\n" + v));
+  return "\n\n=== REFERENCIAS DE LA SKILL DE PROPUESTAS DE GRUPO MACRO ===\n\n" + parts.join("\n\n") + "\n\n=== FIN DE LAS REFERENCIAS ===\n";
+}
+function anPrompt(notas) {
+  return [
+    "Eres consultor comercial senior de Grupo Macro y sigues la skill de propuestas de Grupo Macro (referencias abajo).",
+    "Paso 1 de la skill: analiza las notas de la reunión ANTES de producir la propuesta.",
+    "Responde en español, en texto plano sin markdown (sin #, sin asteriscos), con estas secciones en mayúsculas y cada punto en una línea que empiece con \"- \":",
+    "LO QUE ESTÁ CLARO",
+    "INCONSISTENCIAS (número de participantes, horas, alcance)",
+    "RIESGOS",
+    "LO QUE FALTA (revisa: cliente y logo; tipo: taller de una jornada o programa de varios meses; mensajes o pilares y marco general; actividades o módulos con su pilar y horario; participantes, facilitadores, fecha, lugar y duración; inversión, que Grupo Macro cotiza por hora y facilitador, no por persona)",
+    "Termina con una línea: PROGRAMA SUGERIDO: ...",
+    "Sé breve: máximo 25 líneas en total. No inventes datos.",
+    skillCtx(false),
+    "NOTAS DE LA REUNIÓN:\n\"\"\"\n" + notas + "\n\"\"\"",
+  ].join("\n");
+}
+function genPrompt(notas, analisis, resp) {
+  return [
+    "Eres consultor comercial senior de Grupo Macro. Con las notas de la reunión, arma la propuesta comercial siguiendo la skill de propuestas de Grupo Macro (referencias abajo): estructura Punto Net (una lámina por actividad o módulo), lenguaje de marca y reglas de los prompts de imagen.",
+    "",
+    "Reglas críticas:",
+    "- Respeta la estructura de las notas y de las respuestas del usuario: no reagrupes actividades, no cambies horarios, no unas actividades.",
+    "- No inventes cifras, precios, fechas ni nombres. Si un dato falta, deja el campo vacío o escribe [PENDIENTE: dato] dentro del texto.",
+    "- Inversión: pon un valor numérico solo si las notas o las respuestas lo dan; si no, usa null.",
+    "- Reescribe con criterio consultivo, no copies las notas, y corrige la ortografía. Usa el término del cliente para su gente. No incluyas datos sensibles (estado civil, maternidad) ni conflictos internos con nombre propio.",
+    "- Sin emojis. Español neutro, frases cortas, voz activa, sin relleno corporativo. En talleres no prometas cifras de negocio sin línea base.",
+    "- Taller de una jornada: cada parte es un momento o pilar de la jornada (por ejemplo marco general, cada pilar o habilidad, cierre) y cada actividad es una lámina dentro de su parte. Programa de varios meses: cada parte es una fase o producto real del programa y cada módulo es una lámina dentro de su parte.",
+    "- Límites: título de lámina hasta 30 caracteres; frase ancla hasta 45; objetivo de lámina 1 o 2 oraciones; contenido hasta 4 puntos; agenda hasta 12 filas.",
+    "- Prompts de imagen (imagen_prompt): empieza con el perfil visual del público (máximo 6 personas, edad, nacionalidad, vestimenta real de trabajo, peinado), luego la acción concreta, el lugar real y la composición. Sin marcas, logotipos, texto ni personajes protegidos. No agregues bloque de estilo fotográfico. Pon prompt en el objetivo y en cada lámina de actividad o módulo.",
+    "- Íconos: usa solo claves de esta lista: " + ICON_KEYS.join(", ") + ".",
+    "",
+    "Responde solo con un objeto JSON, sin comentarios, con esta forma:",
+    JSON.stringify({
+      cliente: "Farmaenlace", titulo: "Mindset Comercial y Cierre Ganador", pais: "Ecuador", fecha: "Octubre 2026",
+      programa: "uno de: " + PROGRAMAS.join(" | ") + " | \"\"",
+      perfil_visual: "cinco cosmetólogas latinoamericanas de 25 a 35 años con uniforme clínico blanco, cabello bien peinado y maquillaje natural",
+      objetivo: { titulo: "uno de: " + ANTE_T.join(" | "), texto: "uno o dos párrafos separados por \\n", destacado: "frase corta opcional", imagen_prompt: "..." },
+      pasos: { titulo: "Estructura de la jornada", intro: "una frase" },
+      partes: [{ nombre: "Marco general: mindset comercial", resumen: "máximo 22 palabras", duracion: "08H00 – 10H00", descripcion: "2 o 3 oraciones",
+        componentes: ["..."], icono: "cerebro", valor: null, detalle_valor: "", imagen_prompt: "",
+        laminas: [{ etiqueta: "Marco general", titulo: "Ciegos y Mudos", hora: "08H00 – 08H45", objetivo: "1 o 2 oraciones", contenido: ["..."], frase: "Mindset correcto", icono: "lupa", imagen_prompt: "..." }] }],
+      agenda: { incluir: true, titulo: "Agenda propuesta", subtitulo: "fecha · lugar · horario", filas: [["08H00 – 08H45", "Ciegos y Mudos", "Mindset comercial"], ["10H00 – 10H30", "Break", ""]] },
+      honorarios: { no_incluye: ["IVA", "..."], forma_pago: "50% al arranque y 50% contra entrega." },
+    }, null, 1),
+    skillCtx(true),
+    "NOTAS DE LA REUNIÓN:\n\"\"\"\n" + notas + "\n\"\"\"",
+    analisis ? "\nANÁLISIS PREVIO:\n" + analisis : "",
+    resp ? "\nRESPUESTAS Y DECISIONES DEL USUARIO (tienen prioridad sobre las notas):\n" + resp : "",
+  ].join("\n");
+}
+
+const S_ = v => (v == null ? "" : String(v)).trim();
+const A_ = v => Array.isArray(v) ? v.map(S_).filter(Boolean) : S_(v).split("\n").map(s => s.trim()).filter(Boolean);
+const icon_ = (k, i) => GA.icons[S_(k).toLowerCase()] ? S_(k).toLowerCase() : ICON_DEFAULT[i % ICON_DEFAULT.length];
+const slot_ = (pr, deco) => S_(pr) ? { mode: "vacio", prompt: S_(pr) } : (deco ? { mode: "deco" } : null);
+// Convierte la respuesta de la IA en una propuesta del generador
+function fromAI(j) {
+  const p = blank();
+  p.cliente = S_(j.cliente); p.titulo = S_(j.titulo);
+  if (PAISES.includes(S_(j.pais))) p.pais = S_(j.pais);
+  if (S_(j.fecha)) p.fecha = S_(j.fecha);
+  if (PROGRAMAS.includes(S_(j.programa))) p.programa = S_(j.programa);
+  p.perfilVisual = S_(j.perfil_visual);
+  const o = j.objetivo || {}, at = S_(o.titulo).toUpperCase();
+  p.ante = { titulo: ANTE_T.includes(at) ? at : "OBJETIVO", texto: S_(o.texto), destacado: S_(o.destacado), layout: "imagen", img: slot_(o.imagen_prompt, true) };
+  const partes = Array.isArray(j.partes) ? j.partes : [];
+  p.pasos = { titulo: S_((j.pasos || {}).titulo) || "Etapas del proyecto", intro: S_((j.pasos || {}).intro), layout: partes.length <= 6 ? "circulos" : "tarjetas", img: { mode: "deco" } };
+  p.partes = partes.map((x, i) => nuevaParte({
+    open: false, nombre: S_(x.nombre), resumen: S_(x.resumen), duracion: S_(x.duracion), descripcion: S_(x.descripcion),
+    componentes: A_(x.componentes).join("\n"), icono: icon_(x.icono, i),
+    valor: hasNum(x.valor) ? String(num(x.valor)) : "", detalleValor: S_(x.detalle_valor),
+    layout: S_(x.imagen_prompt) ? (i % 2 ? "imagenIzq" : "imagenDer") : "lista", img: slot_(x.imagen_prompt, false),
+    extras: (Array.isArray(x.laminas) ? x.laminas : []).map((e, k) => ({
+      open: false, etiqueta: S_(e.etiqueta), titulo: S_(e.titulo), hora: S_(e.hora), objetivo: S_(e.objetivo),
+      contenido: A_(e.contenido).join("\n"), frase: S_(e.frase), icono: icon_(e.icono, k + 3),
+      layout: k % 2 ? "imagenDer" : "imagenIzq", img: slot_(e.imagen_prompt, true) })),
+  }, i));
+  if (!p.partes.length) p.partes = [nuevaParte()];
+  const ag = j.agenda || {};
+  const filas = (Array.isArray(ag.filas) ? ag.filas : []).map(r => (Array.isArray(r) ? r : [r]).map(S_));
+  p.agenda = { incluir: filas.length > 0 && ag.incluir !== false, titulo: S_(ag.titulo) || "Agenda propuesta", subtitulo: S_(ag.subtitulo),
+    filas: filas.map(r => [r[0], r[1], r[2]].filter((v, i) => i < 2 || v).map(v => v || "").join(" | ")).join("\n") };
+  const h = j.honorarios || {};
+  if (A_(h.no_incluye).length) p.inv.noIncluye = A_(h.no_incluye).join("\n");
+  if (S_(h.forma_pago)) p.inv.formaPago = S_(h.forma_pago);
+  p.tpl = Object.assign({}, TPL_DEFAULT, { estilo: "portafolio", portada: "ciudad", cierre: "clase" });
+  return p;
+}
+function iaBusy(on) { $("btnAnalizar").disabled = on; $("btnGenerar").disabled = on; }
+function notasOk() {
+  const n = (state.notas || "").trim();
+  if (n.length < 40) { iaStatus("Pega primero las notas o la transcripción de la reunión (o sube un archivo).", true); return null; }
+  return n;
+}
+function iaFail(e, what) {
+  const code = e && e.code;
+  if (code === "cancelled") return;
+  if (AI_HIDE.includes(code)) { document.body.classList.remove("ai-on"); setStatus("La IA no está disponible en esta cuenta.", true); return; }
+  iaStatus(code === "invalid_json" ? "La respuesta de la IA llegó incompleta. Vuelve a pulsar “" + what + "”." : aiMsg(e) || "No se pudo completar. Vuelve a intentar.", true);
+}
+$("btnAnalizar").addEventListener("click", async () => {
+  const notas = notasOk(); if (!notas || !sampleFn) return;
+  iaBusy(true); $("iaOut").hidden = false;
+  const out = $("iaAnalisis"); out.textContent = "Analizando las notas…";
+  iaStatus("Analizando con la skill de propuestas…");
+  try {
+    const r = await sampleFn(anPrompt(notas), { modelTier: "default", cache: false, onText: ({ text }) => { out.textContent = text; } });
+    state.iaAnalisis = String(r.text || "").trim(); out.textContent = state.iaAnalisis;
+    $("iaRespWrap").hidden = false; growAll($("secIA"));
+    iaStatus("Responde lo que falta (opcional) y pulsa “Generar propuesta”.");
+    if (!state.ejemplo) markEdited();
+  } catch (e) { iaFail(e, "Analizar notas"); }
+  finally { iaBusy(false); }
+});
+$("btnGenerar").addEventListener("click", async () => {
+  const notas = notasOk(); if (!notas || !sampleFn) return;
+  iaBusy(true);
+  iaStatus("Armando la propuesta con la skill de Grupo Macro… puede tardar uno o dos minutos.");
+  try {
+    const j = await sampleFn.json(genPrompt(notas, state.iaAnalisis || "", state.iaResp || ""), { modelTier: "default", cache: false,
+      onText: ({ text }) => iaStatus("Armando la propuesta… " + text.length.toLocaleString("es") + " caracteres escritos.") });
+    if (!j || typeof j !== "object" || Array.isArray(j)) throw { code: "invalid_json" };
+    const prev = state, p = fromAI(j);
+    p.notas = prev.notas; p.iaResp = prev.iaResp || ""; p.iaAnalisis = prev.iaAnalisis || "";
+    const mismo = !prev.cliente || prev.ejemplo || prev.cliente.trim().toLowerCase() === p.cliente.toLowerCase();
+    if (prev.logo && mismo) { p.logo = prev.logo; p.color = prev.color; }
+    if (saveTimer && !prev.ejemplo) { clearTimeout(saveTimer); await persist(); }
+    touched = true; state = normalize(p); fillForm(); await persist();
+    const nimg = slotsOf(state).filter(s => s.slot && s.slot.mode === "vacio" && s.slot.prompt).length;
+    iaStatus("Listo: se creó “" + labelOf(state) + "”. Revisa y edita cada sección; " + nimg + " espacios de imagen traen su prompt para Gemini. Sube el logo del cliente en la sección 1.");
+  } catch (e) { iaFail(e, "Generar propuesta"); }
+  finally { iaBusy(false); }
+});
+
+// Perfil visual del público a partir de una foto de referencia
+$("f-perfil-foto").addEventListener("input", e => e.stopPropagation());
+$("f-perfil-foto").addEventListener("change", async ev => {
+  ev.stopPropagation();
+  const f = ev.target.files && ev.target.files[0]; ev.target.value = "";
+  if (!f || !sampleFn) return;
+  setStatus("Describiendo la foto…");
+  try {
+    const r = await sampleFn("Esta es una foto de referencia del público de una propuesta comercial. Describe en una sola frase, en español, su perfil visual para usarlo en prompts de imágenes: cantidad aproximada de personas (máximo 6), rango de edad, vestimenta de trabajo exacta (prenda, color, detalles), peinado, maquillaje o accesorios y contexto. Sin nombres, sin juicios y sin datos sensibles. Responde solo con la frase.",
+      { images: f, modelTier: "default", cache: false });
+    const ta = $("f-perfil"); ta.value = String(r.text || "").trim(); ta.dispatchEvent(new Event("input", { bubbles: true }));
+    setStatus("Perfil visual actualizado desde la foto");
+  } catch (e) {
+    setStatus(e && (e.code === "images_unavailable" || e.code === "image_rejected") ? "La IA no pudo ver esa foto. Prueba con un JPG o PNG más liviano." : aiMsg(e) || "No se pudo describir la foto.", true);
+  }
+});
+
+// Todos los espacios de imagen de la propuesta, con su nombre y formato
+function slotsOf(p) {
+  const out = [];
+  if (p.tpl.portada === "foto") out.push({ nombre: "Portada", slot: p.portadaImg, ar: "16:9" });
+  if (p.ante.layout === "imagen") out.push({ nombre: p.ante.titulo || "Objetivo", slot: p.ante.img, ar: "1:1" });
+  if (p.pasos.layout === "lista") out.push({ nombre: p.pasos.titulo || "Pasos", slot: p.pasos.img, ar: "1:1" });
+  p.partes.forEach((pt, i) => {
+    if (pt.layout !== "lista") out.push({ nombre: letter(i) + ". " + (pt.nombre || "Paso"), slot: pt.img, ar: "1:1" });
+    pt.extras.forEach(x => { if (x.layout !== "lista") out.push({ nombre: letter(i) + ". " + (pt.nombre || "Paso") + " · " + extraLabel(x), slot: x.img, ar: "1:1" }); });
+  });
+  return out;
+}
+async function saveFile(name, data) {
+  if (!inArtifact) {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(data instanceof Blob ? data : new Blob([data])); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000); return;
+  }
+  if (!downloads) downloads = await window.claude.use("downloads");
+  if (!downloads) throw { code: "unavailable" };
+  await downloads.save({ filename: name, data });
+}
+// Genera con Gemini todas las imágenes que tienen prompt y todavía no tienen imagen (una por una)
+$("btnGenAll").addEventListener("click", async () => {
+  const items = slotsOf(state).filter(s => s.slot && s.slot.mode === "vacio" && S_(s.slot.prompt));
+  if (!items.length) { setStatus("No hay espacios vacíos con prompt. Escribe o sugiere los prompts primero.", true); return; }
+  const btn = $("btnGenAll"); btn.disabled = true;
+  let ok = 0;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    setStatus("Generando imagen " + (i + 1) + " de " + items.length + ": " + it.nombre + "…");
+    try {
+      Object.assign(it.slot, await generarImagen(it.slot.prompt, it.ar));
+      ok++; renderPreviewSoon(); markEdited();
+    } catch (e) {
+      if (e && e.code === "sesion") break;
+      setStatus("No se pudo generar “" + it.nombre + "”: " + (aiMsg(e) || "error"), true);
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+  renderSlots(); renderPartes();
+  btn.disabled = false;
+  setStatus(ok + " de " + items.length + " imágenes generadas con Gemini.", ok < items.length);
+});
+$("btnPrompts").addEventListener("click", async () => {
+  const items = slotsOf(state).filter(s => s.slot && s.slot.mode !== "deco" && S_(s.slot.prompt));
+  if (!items.length) { setStatus("Todavía no hay prompts. Escríbelos o sugiérelos en los espacios de imagen.", true); return; }
+  const md = "# Prompts para Gemini — " + labelOf(state) + "\n\n"
+    + (state.perfilVisual ? "Perfil visual del público: " + state.perfilVisual + "\n\n" : "")
+    + items.map((it, i) => "## " + (i + 1) + ". " + it.nombre + " (" + it.ar + ")\n\n" + fullPrompt(it.slot.prompt, it.ar) + "\n").join("\n");
+  try { await saveFile(("Prompts Gemini " + (state.cliente || "propuesta")).replace(/[\\/:*?"<>|]+/g, " ").trim() + ".md", md); setStatus("Prompts descargados"); }
+  catch (e) { setStatus(e && e.code === "declined" ? "Descarga cancelada" : "No se pudo descargar el archivo.", !(e && e.code === "declined")); }
+});
+
+// ---------- Vista previa ----------
+let pvTimer = 0;
+function renderPreviewSoon() { clearTimeout(pvTimer); pvTimer = setTimeout(renderPreview, 120); }
+function renderPreview() {
+  const box = $("slides"); box.textContent = "";
+  const S = buildSlides(state, makeEnv());
+  S.forEach((sl, i) => {
+    const w = document.createElement("div"); w.className = "slide-wrap";
+    const cap = document.createElement("div"); cap.className = "slide-cap";
+    const b = document.createElement("b"); b.textContent = String(i + 1).padStart(2, "0");
+    const t = document.createElement("span"); t.textContent = sl.name;
+    cap.append(b, t);
+    w.append(cap, renderSlide(sl));
+    box.appendChild(w);
+  });
+  const nph = S.reduce((n, s) => n + s.els.filter(e => e.t === "ph").length, 0);
+  $("slideCount").textContent = S.length + " láminas · 16:9" + (nph ? " · " + nph + (nph === 1 ? " espacio" : " espacios") + " para imagen" : "");
+}
+
+// ---------- Selector de propuestas ----------
+const labelOf = p => (p.cliente || "Sin cliente") + " — " + (p.titulo || "Sin título");
+let plTimer = 0;
+function renderPickerLabelSoon() { clearTimeout(plTimer); plTimer = setTimeout(renderPicker, 300); }
+function renderPicker() {
+  const sel = $("picker"); sel.textContent = "";
+  const items = saved.filter(x => x.id !== state.id);
+  const cur = document.createElement("option"); cur.value = state.id;
+  cur.textContent = (state.ejemplo ? "Ejemplo · " : "") + labelOf(state);
+  sel.appendChild(cur);
+  if (items.length) {
+    const g = document.createElement("optgroup"); g.label = "Guardadas";
+    items.forEach(x => { const o = document.createElement("option"); o.value = x.id; o.textContent = labelOf(x); g.appendChild(o); });
+    sel.appendChild(g);
+  }
+  sel.value = state.id;
+  $("btnDel").disabled = !!state.ejemplo;
+}
+function openDoc(p) {
+  clearTimeout(saveTimer);
+  state = normalize(JSON.parse(JSON.stringify(p)));
+  state.partes.forEach(x => x.open = false);
+  lsSet(LS_OPEN, state.id);
+  fillForm(); setStatus(state.updatedAt ? "Abierta" : "");
+}
+// Completa propuestas guardadas con versiones anteriores de la webapp
+function normalize(p) {
+  const b = blank();
+  const out = Object.assign(b, p);
+  out.tpl = Object.assign({}, TPL_DEFAULT, p.tpl || {});
+  if (!p.tpl) out.tpl.cierre = p.incluirContacto === false ? "mapa" : "ambos";
+  out.ante = Object.assign(blank().ante, p.ante || {});
+  out.pasos = Object.assign(blank().pasos, p.pasos || {});
+  out.inv = Object.assign(blank().inv, p.inv || {});
+  out.agenda = Object.assign(blank().agenda, p.agenda || {});
+  out.inv.otros = (Array.isArray(out.inv.otros) ? out.inv.otros : []).map(l => nuevaLinea(l));
+  out.partes = (p.partes && p.partes.length ? p.partes : [{}]).map((x, i) => nuevaParte(x, i));
+  out.localImgs = p.localImgs || {};
+  return out;
+}
+$("picker").addEventListener("change", e => {
+  const id = e.target.value; if (id === state.id) return;
+  if (saveTimer && !state.ejemplo) { clearTimeout(saveTimer); persist(); }
+  openById(id);
+});
+$("btnNew").addEventListener("click", () => {
+  if (saveTimer && !state.ejemplo) { clearTimeout(saveTimer); persist(); }
+  touched = true; state = blank(); state.partes[0].open = true; fillForm(); setStatus("Nueva propuesta");
+  $("f-cliente").focus();
+});
+$("btnDup").addEventListener("click", () => {
+  const c = JSON.parse(JSON.stringify(state));
+  c.id = uid(); c.ejemplo = false; c.titulo = (c.titulo || "Propuesta") + " (copia)"; c.updatedAt = 0;
+  c.partes.forEach(x => { x.id = uid(); x.open = false; (x.extras || []).forEach(e => { e.id = uid(); }); });
+  touched = true; state = normalize(c); fillForm(); persist();
+});
+$("btnDel").addEventListener("click", () => { $("btnDel").hidden = true; $("delConfirm").hidden = false; });
+$("btnDelNo").addEventListener("click", () => { $("btnDel").hidden = false; $("delConfirm").hidden = true; });
+$("btnDelYes").addEventListener("click", async () => {
+  $("btnDel").hidden = false; $("delConfirm").hidden = true;
+  const id = state.id; clearTimeout(saveTimer);
+  try {
+    if (db) await db.collection("propuestas").doc(id).delete();
+    else { saved = localList().filter(x => x.id !== id); lsSet(LS_KEY, JSON.stringify(saved)); }
+    saved = saved.filter(x => x.id !== id);
+    const next = saved[0];
+    if (next) openById(next.id); else { state = blank(); fillForm(); }
+    setStatus("Propuesta eliminada");
+  } catch { setStatus("No se pudo eliminar. Vuelve a intentar.", true); }
+});
+
+// ---------- Descarga ----------
+$("btnPptx").addEventListener("click", async () => {
+  if (typeof PptxGenJS === "undefined") { setStatus("No cargó el generador de PowerPoint. Recarga la página.", true); return; }
+  const btn = $("btnPptx"); btn.disabled = true; setStatus("Generando PowerPoint…");
+  const name = ("Propuesta " + (state.cliente || "") + " " + (state.titulo || "")).replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() + ".pptx";
+  try {
+    await ensureImages(state);
+    if (state.tpl.iconos === "acento") { const A = hex(state.color); await Promise.all([...usedIcons(state)].map(k => tintAsync(k, A).catch(() => {}))); }
+    const slides = buildSlides(state, makeEnv());
+    await prepImages(slides);
+    const { pptx, rounds } = buildPptx(state, slides);
+    const buf = await patchPlaceholders(await pptx.write({ outputType: "arraybuffer" }), rounds);
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
+    if (!inArtifact) {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      setStatus("PowerPoint descargado"); return;
+    }
+    if (!downloads) downloads = await window.claude.use("downloads");
+    if (!downloads) { setStatus("La descarga no está disponible en esta vista.", true); return; }
+    await downloads.save({ filename: name, data: blob });
+    setStatus("PowerPoint descargado");
+  } catch (e) {
+    const code = e && e.code;
+    if (code === "declined") setStatus("Descarga cancelada");
+    else if (code === "rate_limited") setStatus("Ya hay una descarga pendiente de confirmar.", true);
+    else setStatus("No se pudo generar el PowerPoint.", true);
+  } finally { btn.disabled = false; }
+});
+
+// ---------- Arranque ----------
+if (GA.logoBlack) { $("brandLogoL").src = GA.logoBlack.src; $("brandLogoD").src = GA.logoWhite.src; }
+bindDrop(document.querySelector(".logo-row"), "logo", loadLogo);
+fillForm();
+
+// ---------- Sesión con Google (solo cuentas del dominio de la empresa) ----------
+let started = false, dominio = "gmacro.com";
+const parseJwt = t => { try { return JSON.parse(decodeURIComponent(escape(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))))); } catch { return {}; } };
+const vence = t => (parseJwt(t).exp || 0) * 1000;
+const esperarGIS = () => new Promise((res, rej) => {
+  let n = 0; const tick = () => { if (window.google && google.accounts && google.accounts.id) res(); else if (n++ > 100) rej(new Error("gis")); else setTimeout(tick, 100); }; tick();
+});
+function mostrarLogin(msg, err) {
+  $("login").hidden = false;
+  if (GA.logoBlack) $("loginLogo").src = GA.logoBlack.src;
+  $("loginMsg").textContent = msg || "Entra con tu cuenta de Grupo Macro (@" + dominio + ").";
+  $("loginErr").textContent = err || "";
+  if (window.google && google.accounts && google.accounts.id) {
+    $("gbtn").textContent = "";
+    google.accounts.id.renderButton($("gbtn"), { theme: "outline", size: "large", text: "signin_with", shape: "pill", locale: "es" });
+  }
+}
+function pedirLogin(err) { idToken = null; lsSet("gm-token", ""); mostrarLogin("Tu sesión terminó. Vuelve a entrar para seguir.", err); }
+function onCredential(t) {
+  const p = parseJwt(t);
+  if (!String(p.email || "").toLowerCase().endsWith("@" + dominio)) { mostrarLogin(null, "Entra con tu correo @" + dominio + "."); return; }
+  idToken = t; lsSet("gm-token", t);
+  $("login").hidden = true;
+  $("userChip").hidden = false; $("userChip").textContent = p.email; $("userChip").title = p.name || p.email;
+  $("btnSalir").hidden = false;
+  if (!started) arrancar();
+}
+$("btnSalir").addEventListener("click", () => {
+  if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
+  lsSet("gm-token", ""); idToken = null; location.reload();
+});
+// Renueva la sesión en silencio antes de que venza (los tokens de Google duran una hora)
+setInterval(() => {
+  if (idToken && vence(idToken) - Date.now() < 10 * 60 * 1000 && window.google && google.accounts) google.accounts.id.prompt();
+}, 4 * 60 * 1000);
+
+async function iniciar() {
+  let cfg = {};
+  try { cfg = await (await fetch("/api/config")).json(); } catch {}
+  dominio = cfg.dominio || "gmacro.com";
+  if (!cfg.clientId) { mostrarLogin("Falta configurar el inicio de sesión.", "El administrador debe definir GOOGLE_CLIENT_ID en Vercel."); return; }
+  try { await esperarGIS(); } catch { mostrarLogin(null, "No cargó el inicio de sesión de Google. Revisa tu conexión y recarga la página."); return; }
+  google.accounts.id.initialize({ client_id: cfg.clientId, callback: r => onCredential(r.credential), auto_select: true, hd: dominio, cancel_on_tap_outside: false, use_fedcm_for_prompt: true });
+  const t = lsGet("gm-token");
+  if (t && vence(t) - Date.now() > 2 * 60 * 1000) { onCredential(t); return; }
+  mostrarLogin();
+  google.accounts.id.prompt();
+}
+
+function arrancar() {
+  started = true;
+  db = makeDb(); sampleFn = makeSample();
+  document.body.classList.add("ai-on");
+  db.collection("propuestas").onSnapshot(snap => {
+    saved = snap.docs.map(x => x.data()).filter(Boolean);
+    if (!touched && state.ejemplo && saved.length) {
+      const openId = lsGet(LS_OPEN);
+      openById((saved.find(x => x.id === openId) || saved[0]).id);
+    } else renderPicker();
+  }, e => { if (!(e && e.code === "sesion")) setStatus("No se pudo leer la lista de propuestas.", true); });
+}
+iniciar();
+})();
+</script>
+</body>
+</html>
